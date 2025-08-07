@@ -11,4 +11,3 @@ Future Updates: Replace the CLI application to a GUI app, and in the further fut
 from Linkgate import linkgate    
 
 url = input("Enter the URL of the Website that you want to analyse: ")
-linkgate(url)
