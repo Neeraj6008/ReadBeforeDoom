@@ -1,5 +1,6 @@
 import validators as v
 import requests
+import whitelist
 
 def linkgate(url):
     def check_status(scode,url):
@@ -46,40 +47,45 @@ def linkgate(url):
                     "url" : url
                     }
 
+
     # Function to check if the input given by the user is a legit website or not
     def Check_link(url):
+        url = url.lower()
         if "@" in url and "." in url and not url.startswith(("http://", "https://")):
             return {"valid" : False,
                     "status_code" : None,
                     "message" : "This seems to be an email, not a URL.",
                     "url" : url
                     }
+        
+        if whitelist.whitelisted_sites(url):
+            return "This website is well-known and trusted. No need to worry — you're good to go!"
+        else:
+            if not url.startswith(("https://", "http://")):        #Todo: Check if the site supports https OR https
+                url = "https://" + url
 
-        if not url.startswith(("https://", "http://")):
-            url = "https://" + url
-
-        if v.url(url):
-            header = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-            " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36"}
-            try:
-                r = requests.head(url, headers=header, timeout=5)
-                response = r.status_code
-                return check_status(response, url)
-
-            except requests.exceptions.RequestException:
+            if v.url(url):
+                header = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36"}
                 try:
-                    r = requests.get(url, headers=header, timeout=5)
+                    r = requests.head(url, headers=header, timeout=5)
                     response = r.status_code
                     return check_status(response, url)
 
                 except requests.exceptions.RequestException:
-                    return "Failed to connect to the website"              
-        else:
-            return {
-                "valid": False,
-                "status_code": None,
-                "message": "Unknown failure",
-                "url": url}
+                    try:
+                        r = requests.get(url, headers=header, timeout=5)
+                        response = r.status_code
+                        return check_status(response, url)
+
+                    except requests.exceptions.RequestException:
+                        return "Failed to connect to the website"              
+            else:
+                return {
+                    "valid": False,
+                    "status_code": None,
+                    "message": "Unknown failure",
+                    "url": url}
     return Check_link(url)
 
 
