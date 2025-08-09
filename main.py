@@ -8,6 +8,13 @@ This is just a prototype, starting with a simple CLI application which:
 
 Future Updates: Replace the CLI application to a GUI app, and in the further future convert this into a web extension that does some stuff...
 '''
-from Linkgate import linkgate    
+from ClauseFetch import ClauseFetch as cf
 
-url = input("Enter the URL of the Website that you want to analyse: ")
+def main():
+    print("Welcome to the Terms and Conditions Analyzer!")
+    url = input("Please enter the URL of the website you want to analyze: ")
+    result = cf(url)
+    print(result)
+
+
+main()

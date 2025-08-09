@@ -7,9 +7,15 @@ What this function does:
 '''
 import Linkgate
 
-def ClauseFetch(url: str) -> str:
+def ClauseFetch(url):
     x = Linkgate.linkgate(url)
-    print(f"Value: {x['valid']}, Status Code: {x.get('status_code', 'N/A')}")
+
+    if x['valid']:
+        #Will start after learning about requests beautifulsoup regular expressions and other stuff
+        return "Fetching and parsing Terms and Conditions is not yet implemented."
+    else:
+        return f"Invalid URL or unable to fetch data. Status Code: {x.get('status_code', 'N/A')}, Message: {x.get('message', 'No message provided')}"
+    
 
 if __name__ == "__main__":
-    print(ClauseFetch("www.openai.com"))
+    print(ClauseFetch("https://www.openai.com"))

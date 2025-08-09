@@ -1,5 +1,6 @@
 '''
-So, turns out, some websites are pretty well known, and this program can't scrape them for data (its illegal)
+So, turns out, some websites are pretty well known, and this program can't scrape them for data (against their
+Terms and Conditions, ironically).
 so this function maintains a database of such sites and if the give link belongs to such site, then the program
 tells the user that its safe and no need to check Terms and Conditions.
 '''

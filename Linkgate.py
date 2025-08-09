@@ -59,7 +59,11 @@ def linkgate(url):
                     }
         
         if whitelist.whitelisted_sites(url):
-            return "This website is well-known and trusted. No need to worry — you're good to go!"
+            print("This website is well-known and trusted. No need to worry, you're good to go!")
+            return {"valid": True,
+                    "status_code": 200,
+                    "message": "Whitelisted site, no need to check further.",
+                    "url": url}
         else:
             if not url.startswith(("https://", "http://")):        #Todo: Check if the site supports https OR https
                 url = "https://" + url
