@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup as bs
 import requests as req
 
 def ClauseFetch(url):
-    x = lg.linkgate(url)  # Gets the filtered url from the url that the user inputted.
+    x = lg.Linkgate(url)  # Gets the filtered url from the url that the user inputted.
 
     if x['valid']:
         html = bs(req.get(x['url']).text, 'html.parser')    # Gets the stuff from the website that we need to work on.
