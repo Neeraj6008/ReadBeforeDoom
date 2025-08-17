@@ -9,11 +9,14 @@ import Linkgate as lg
 from bs4 import BeautifulSoup as bs
 import requests as req
 
+header = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36"}
+
 def ClauseFetch(url):
-    x = lg.Linkgate(url)  # Gets the filtered url from the url that the user inputted.
+    x = lg.linkgate(url)  # Gets the filtered url from the url that the user inputted.
 
     if x['valid']:
-        html = bs(req.get(x['url']).text, 'html.parser')    # Gets the stuff from the website that we need to work on.
+        html = bs(req.get(x['url'], headers= header).text, 'html.parser')    # Gets the stuff from the website that we need to work on.
         for a_tag in html.find_all('a', href=True):         # Finds all the links that are in the webpage
             href = a_tag['href']
             if href.lower() in ["terms", "conditions", "cookie", "privacy", "legal", "policy"]: # Identifies the link to the Terms and conditions page and returns it.
@@ -24,7 +27,7 @@ def ClauseFetch(url):
     
 
 if __name__ == "__main__":
-    print(ClauseFetch("https://www.google.com"))
+    print(ClauseFetch("https://www.fitgirlrepacks.org"))
 
 # TODOs for ClauseFetch:
 # *MAIN THING TO DO: LEARN EVERYTHING ABOUT STATIC WEB SCRAPING*
