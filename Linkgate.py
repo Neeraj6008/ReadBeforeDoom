@@ -4,125 +4,84 @@ What linkgate(url) does:
 2. Verifies the format of the url, or returns "url is invalid"
 3. Verifies if the url is reachable
 4. returns a dictionary containing info about validity of url, status code, custom message, and the url itself
+
+✅ = function is done 100%
 '''
 
-import validators as v
 import requests
 import whitelist
 import urllib.parse
 import ipaddress
 import sys
+import idna
+import re
+import dns.resolver
 
-# Checks the status of the website linked to the url
-def check_status(scode,url):
-        if scode in range(200, 400):
-            return {
-                    "valid" : True,
-                    "status_code" : scode,
-                    "message" : "Page is valid",
-                    "url" : url
-                    }
+def ipvcollector(hostname):
+    try:
+        answers = dns.resolver.resolve(hostname, 'A')
+        ipv4_add = [rdata.address for rdata in answers]
+    except dns.resolver.NXDOMAIN:
+        sys.exit(f"Hostname does not exist: {hostname}")
+    except dns.resolver.Timeout:
+        sys.exit(f"DNS query timed out for: {hostname}")
+    except dns.resolver.NoAnswer:
+        ipv4_add = []
+
+    try:
+        answers6 = dns.resolver.resolve(hostname, 'AAAA')  # IPv6
+        ipv6_add = [rdata.address for rdata in answers6]
+    except (dns.resolver.NXDOMAIN, dns.resolver.Timeout, dns.resolver.NoAnswer):
+        ipv6_add = []
+
+    return ipv4_add + ipv6_add
+
+
+def linkgate(url):  # Checks if the given url has a valid format and is reachable.
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):  # Checks if the scheme of the url is http or https, if not, program exits.
+        sys.exit("The given link doesn't have a valid scheme (http or https).")
         
-        elif scode == 403:
-            return {"valid" : False,
-                    "status_code" : scode,
-                    "message" :"No Permission to access this page",
-                    "url" : url
-                    }
-        
-        elif scode == 404:
-            return {"valid" : False,
-                    "status_code" : scode,
-                    "message" : "Page not found",
-                    "url" : url
-                    }
-        
-        elif scode == 500:
-            return {"valid" : False,
-                    "status_code" : scode,
-                    "message" : "Internal Server error",
-                    "url" : url
-                    }
-        
-        elif scode == 503:
-            return {"valid" : False,
-                    "status_code" : scode,
-                    "message" : "Server is down or overloaded",
-                    "url" : url
-                    }
-        
+    elif not parsed.hostname:   # Checks if the hostname (the www.site.com/org/... part of the link.) is valid, if not, program exits.
+        sys.exit("The hostname of the given url is invalid.")
+
+
+    IDN = (parsed.hostname.split('.')[-1])  # This block verifies the TLD of the hostname (the .com/org/... part of hostname), if not, program exits.
+    try:
+        TLD = requests.get("https://data.iana.org/TLD/tlds-alpha-by-domain.txt", timeout=5).text.split()
+        if not IDN.upper() in TLD:
+            sys.exit("This url has an invalid TLD.")
+    except requests.RequestException:
+        sys.exit("Couldn't load TLDs from https://data.iana.org/TLD/tlds-alpha-by-domain.txt")
+
+
+    try:    # This block check if the hostname is a non-ASCII hostname, if yes, it decodes into an ASCII-equivalent.
+        if re.search(r'[^\x00-\x7F]', parsed.hostname): 
+            ascii_hostname = idna.encode(parsed.hostname).decode("ascii")
         else:
-            return {"valid": False,
-                    "status_code": scode,
-                    "message" : "Unhandled status code",
-                    "url" : url
-                    }
+            ascii_hostname = parsed.hostname
+    except idna.IDNAError:
+        sys.exit(f"Invalid Internationalized domain: {parsed.hostname}")
 
-# Checks if the give url has valid format or not.
-def subfunc_linkformat_check(url):
-        try:
-            parsed = urllib.parse.urlparse(url)
-            
-            if parsed.scheme not in ("http", "https"):
-                    return False
-            if not parsed.hostname:
-                    return False
-            try:
-                ip = ipaddress.ip_address(parsed.hostname)
-                if ip.is_private or ip.is_loopback or ip.is_reserved:
-                    return False
-            except ValueError:
-                pass # not an ip address so its skipped
-            return True
-        except Exception:
-            return False
-        
-# Checks if the input given by the user is a legit website or not
-def Linkgate(url):
-    if subfunc_linkformat_check(url):
-        if whitelist.whitelisted_sites(url):
-            print("This website is well-known and trusted. No need to worry, you're good to go!")
-            sys.exit(0)
-        
-        else:
-            if not url.startswith(("https://", "http://")):        #Todo: Check if the site supports https OR https
-                url = "https://" + url
+    if not len(ipvcollector(ascii_hostname)) == 0:
+        for ip_str in ipvcollector(ascii_hostname):
+            ipobject = ipaddress.ip_address(ip_str)
+            if ipobject.is_private or ipobject.is_loopback or ipobject.is_reserved or ipobject.is_multicast:
+                sys.exit(f"Reserved/Loopback/private/multicast URL: {url}")
+    print(ascii_hostname)
+    return ascii_hostname
 
-            if v.url(url):
-                header = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-                " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36"}
-                try:
-                    r = requests.head(url, headers=header, timeout=5)
-                    response = r.status_code
-                    return check_status(response, url)
-
-                except requests.exceptions.RequestException:
-                    try:
-                        r = requests.get(url, headers=header, timeout=5)
-                        response = r.status_code
-                        return check_status(response, url)
-
-                    except requests.exceptions.RequestException:
-                        return "Failed to connect to the website"              
-            else:
-                return {
-                    "valid": False,
-                    "status_code": None,
-                    "message": "Unknown failure",
-                    "url": url}
-    else:
-        return 
-
-
-if __name__ == "__main__":
-     url = input("Enter a URL: ")
-     print(Linkgate(url))
-
+    
 
 # TODO: Improve subfunc_linkformat_check pre-validation
-# - Reject non-ASCII hostnames early (regex check) OR handle IDN via idna.encode()
-# - Validate TLD against IANA list (https://data.iana.org/TLD/tlds-alpha-by-domain.txt)
-#   Reject unknown/reserved TLDs
-# - Reject reserved/private/loopback/multicast IPs before connect
-# - Strictly allow only http/https schemes
-# - (Optional) Normalize punycode domains and handle encoding errors
+# - Reject non-ASCII hostnames early (regex check) OR handle IDN via idna.encode() ✅
+# - Validate TLD against IANA list (https://data.iana.org/TLD/tlds-alpha-by-domain.txt) ✅
+#   Reject unknown/reserved TLDs ✅
+# - Reject reserved/private/loopback/multicast IPs before connect ✅
+# - Strictly allow only http/https schemes ✅
+# - (Optional) Normalize punycode domains and handle encoding errors ✅
+# - Add logic to cache the TLD list to make the program faster and reduce data usage
+
+if __name__ == "__main__":
+    url = input("Enter url: ")
+    linkgate(url)
