@@ -8,14 +8,20 @@ What linkgate(url) does:
 ✅ = function is done 100%
 '''
 
-import requests
-import whitelist
-import urllib.parse
-import ipaddress
+# Standard library
 import sys
-import idna
 import re
+import ipaddress
+import urllib.parse
+
+# Third-party libraries
+import requests
+import idna
 import dns.resolver
+
+# Local application imports
+import whitelist
+
 
 def ipvcollector(hostname):
     try:
@@ -39,7 +45,11 @@ def ipvcollector(hostname):
 
 def linkgate(url):  # Checks if the given url has a valid format and is reachable.
     parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in ("http", "https"):  # Checks if the scheme of the url is http or https, if not, program exits.
+    if not parsed.scheme:
+        url = "https://" + url
+        parsed = urllib.parse.urlparse(url)
+
+    elif parsed.scheme not in ("http", "https"):  # Checks if the scheme of the url is http or https, if not, program exits.
         sys.exit("The given link doesn't have a valid scheme (http or https).")
         
     elif not parsed.hostname:   # Checks if the hostname (the www.site.com/org/... part of the link.) is valid, if not, program exits.
