@@ -22,6 +22,7 @@ import dns.resolver
 # Local application imports
 import whitelist
 
+#Pre-validation part:
 
 def ipvcollector(hostname):
     try:
@@ -50,9 +51,27 @@ def ipvcollector(hostname):
     except (dns.resolver.NXDOMAIN, dns.resolver.Timeout, dns.resolver.NoAnswer):
         ipv6_add = []
 
-    return {
-        "iplist" : ipv4_add + ipv6_add
-        }
+    return {"iplist" : ipv4_add + ipv6_add}
+     
+# Checks if the hostname (specifically the subdomain part) is valid or not.
+def is_valid_hostname(hostname):
+
+    if len(hostname) > 253:
+        return False
+    
+    labels = hostname.split('.')
+    
+    pattern = re.compile(r'^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$', re.IGNORECASE)
+    
+    for label in labels:
+        if not pattern.match(label):
+            return False
+    
+    for label in labels:
+        if re.match(r'^(.)\1{3,}$', label, re.IGNORECASE):
+            return False
+    
+    return True
 
 
 # Checks if the given url has a valid format and is reachable.
@@ -70,7 +89,7 @@ def linkgate(url):
                 }
 
 # Checks if the hostname (the www.site.com/org/... part of the link.) is valid or not.        
-    elif not parsed.hostname:
+    elif parsed.hostname and is_valid_hostname(parsed.hostname):
         return {
             "valid" : False,
             "url" : url,
@@ -111,9 +130,10 @@ def linkgate(url):
             "message" : f"Invalid Internationalized domain: {parsed.hostname}"
         }
 
+    # Checks if the url directs to a private, loopback, reserved or multicast website.
     ips = ipvcollector(url0)
-    if ips:
-        for ip_str in ips:
+    if ips and 'iplist' in ips:
+        for ip_str in ips["iplist"]:
             ipobject = ipaddress.ip_address(ip_str)
             if ipobject.is_private or ipobject.is_loopback or ipobject.is_reserved or ipobject.is_multicast:
                 return {
@@ -122,25 +142,45 @@ def linkgate(url):
             "message" : f"Reserved/Loopback/private/multicast URL: {url0}"
         }
 
+    # All the pre validation checks have been done, this part of code remakes the verified url into usable form.
     port = ""
     if ':' in parsed.netloc:
         port = ":" + parsed.netloc.split(":")[1]
     normalized_netloc = url0 + port
 
-    reconstructed_url = urlunparse((
+    url1 = urlunparse((
         parsed.scheme, normalized_netloc,
         parsed.path, parsed.params,
         parsed.query, parsed.fragment
     ))
 
-    return {
-        "valid": True,
-        "url": reconstructed_url,
-        "message": "URL is valid"
+
+    # Validation Part
+
+    # Using headers increases the chances of the website allowing this program to access it.
+    header = headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Referer": "https://www.google.com/",
+    "Connection": "keep-alive"
 }
 
+    request_object = requests.head(url1, timeout= 5, headers= header)
+    try:
+        status_code = request_object.status_code
+        print(status_code)
+    except requests.exceptions.RequestException as e:
+        return {
+        "valid": False,
+        "url": url1,
+        "message": f"Connection failed: {str(e)}"
+    }
 
-    
+# TODO Validation:
+# - First, use requests to get the headers of url1.
+# -  FIXTHATDAMNERRORAHHHHGHDFDFSLGLASGALA
 
 # TODO: Implement TLD list caching to improve performance and reduce network usage
 # - Store TLD list locally in a cache file (e.g., tld_cache.txt or JSON)
