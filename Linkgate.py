@@ -46,6 +46,9 @@ def ipvcollector(hostname):
     except dns.resolver.NoAnswer:
         ipv4_add = []
 
+    except dns.name.LabelTooLong:
+        return {"valid": False, "url": hostname, "message": f"DNS label too long in hostname: {hostname}"}
+
     try:
         answers6 = dns.resolver.resolve(hostname, "AAAA")  # IPv6
         ipv6_add = [rdata.address for rdata in answers6]
@@ -55,12 +58,18 @@ def ipvcollector(hostname):
     return {"iplist": ipv4_add + ipv6_add}
 
 # Checks if the hostname (specifically the subdomain part) is valid or not.
-def is_valid_hostname(hostname):
+import re
 
+def is_valid_hostname(hostname):
     if len(hostname) > 253:
         return False
 
     labels = hostname.split(".")
+
+    # Check each label length must be <= 63
+    for label in labels:
+        if len(label) > 63:
+            return False
 
     pattern = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", re.IGNORECASE)
 
@@ -73,6 +82,7 @@ def is_valid_hostname(hostname):
             return False
 
     return True
+
 
 # Function to check the status code of the website and check if we can continue with scraping the website.
 def status_code_checker(response):
@@ -119,7 +129,7 @@ def linkgate(url):
             return {
                 "valid": False,
                 "url": url,
-                "message": "This url has an invalid TLD.",
+                "message": "This url has an invalid hostname.",
             }
 
     except requests.RequestException:
@@ -200,6 +210,8 @@ def linkgate(url):
             return {"valid": False, "url": url1, "message": "Invalid response status code"}
     except requests.exceptions.RequestException as e:
         return {"valid": False, "url": url1, "message": f"Connection failed: {str(e)}"}
+    
+    return url_final
 
 
 # TODO: Implement TLD list caching to improve performance and reduce network usage
