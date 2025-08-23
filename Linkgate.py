@@ -79,9 +79,9 @@ def status_code_checker(response):
     if 300 <= response.status_code <= 399:
         return {"valid": True, "redirect/link": response.headers.get("Location")}
     elif response.status_code < 300:
-        return {"valid": True, "redirect/link": False}
+        return {"valid": True, "redirect/link": response.url}
     else:
-        return {"valid": False, "redirect": False}
+        return {"valid": False, "redirect/link": False}
 
 
 
@@ -191,6 +191,13 @@ def linkgate(url):
     try:
         response = requests.head(url1, timeout=5, headers=header)
         status_code_valid = status_code_checker(response)
+        if status_code_valid["valid"]:
+            if status_code_valid["redirect/link"]:
+                url_final = status_code_valid["redirect/link"]
+            else:
+                url_final = url1
+        else:
+            return {"valid": False, "url": url1, "message": "Invalid response status code"}
     except requests.exceptions.RequestException as e:
         return {"valid": False, "url": url1, "message": f"Connection failed: {str(e)}"}
 
