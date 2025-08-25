@@ -112,7 +112,7 @@ def linkgate(url):
         }
 
     # Checks if the hostname (the www.site.com/org/... part of the link.) is valid or not.
-    elif parsed.hostname and is_valid_hostname(parsed.hostname):
+    elif parsed.hostname and not is_valid_hostname(parsed.hostname):
         return {
             "valid": False,
             "url": url,

@@ -10,18 +10,20 @@ import requests as r
 from bs4 import BeautifulSoup as b
 import regex as re
 import urllib.parse as up
+from Linkgate import linkgate as lg
 
 terms_fragments = [
     "by using this service", "by accessing this website", "you agree to",
     "you hereby agree to be bound by", "limitation of liability", "to the fullest extent permitted by law",
     "we reserve the right to", "without prior notice", "indemnify and hold harmless",
-    "governing law", "these terms constitute the entire agreement", "modification of terms"
+    "governing law", "these terms constitute the entire agreement", "modification of terms",
+    "privay policy", "share your data", "retain your data", "what rights you have over your data"
 ]
 
 # Helper function 1 to check if Terms and Conditions are in the current page:
 def tac_in_page(tac):
-    for line in tac.splitlines():
-        if any(fragment in line.lower() for fragment in terms_fragments):
+    for i in ():
+        if any(fragment in i.lower() for fragment in terms_fragments):
             return {
                 "success": True,
                 "found_in_page": True,
@@ -89,9 +91,9 @@ def Clausefetch(url):
     tac = soup.text
 
     idkwhattonamevariablesatthispoint = tac_in_page(tac)
-    helpmeplease = tac_notin_page(soup)
+    helpmeplease = tac_notin_page(soup, url)
 
-    if idkwhattonamevariablesatthispoint["tacinpage"]:
+    if idkwhattonamevariablesatthispoint["success"]:
         return {
                 "success": True,
                 "found_in_page": True,
@@ -100,22 +102,13 @@ def Clausefetch(url):
                 "links": None,
                 "error": None
                 }
-
-    elif helpmeplease:
-        return {
-                "success": False,
-                "found_in_page": False,
-                "found_in_links": False,
-                "content": None,
-                "links": helpmeplease["links"],
-                "error": None
-                }
-
-    else:
-        return False
+    
+    #elif not idkwhattonamevariablesatthispoint["success"] and helpmeplease["links"]:
+        
 
 
 # TODO:
+# FIXTHATDAMNFKINGERROR!!!!!
 # 1. Implement recursive or iterative fetching of candidate links found by tac_notin_page
 #    to check those pages for Terms and Conditions content.
 #    - Limit depth or max number of links checked to avoid excessive crawling.
@@ -125,4 +118,4 @@ def Clausefetch(url):
 
 
 if __name__ == "__main__":
-    Clausefetch("https://www.fitgirlrepacks.org")
+    Clausefetch("https://www.fitgirlrepacks.org/privacy-policy/")
