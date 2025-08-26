@@ -8,21 +8,20 @@ What linkgate(url) does:
 ✅ = function is done 100%
 """
 
-# Standard library
+
+import os
+import json
+import time
 import sys
 import re
 import ipaddress
 from urllib.parse import urlparse, urlunparse
 
-# Third-party libraries
 import requests
 import idna
 import dns.resolver
 
-# Local application imports
 import whitelist
-
-# Pre-validation part:
 
 # Helper Functions:
 def ipvcollector(hostname):
@@ -94,6 +93,58 @@ def status_code_checker(response):
         return {"valid": False, "redirect/link": False}
 
 
+# Functions to cache the TLD IDNA list, because getting it each time from the internet is wasteful.
+def get_tld_cache_path():
+    cache_dir = os.path.expanduser("~/.linkgate_cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    return os.path.join(cache_dir, "tld_cache.json")
+
+def is_cache_valid(cache_path, max_age_seconds=604800):  # One week = 604800 seconds
+    if not os.path.exists(cache_path):
+        return False
+    
+    file_age = time.time() - os.path.getmtime(cache_path)
+    return file_age < max_age_seconds
+
+def load_tld_cache(cache_path):
+    try:
+        with open(cache_path, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+def save_tld_cache(cache_path, tld_list):
+    with open(cache_path, 'w') as f:
+        json.dump(tld_list, f)
+
+def get_tld_list():
+    cache_path = get_tld_cache_path()
+    
+    # Try to use cached data first
+    if is_cache_valid(cache_path):
+        cached_data = load_tld_cache(cache_path)
+        if cached_data:
+            return cached_data
+    
+    # Fetch fresh data if cache is invalid/missing
+    try:
+        response = requests.get(
+            "https://data.iana.org/TLD/tlds-alpha-by-domain.txt", 
+            timeout=10)
+        tld_list = response.text.split()
+        
+        # Save to cache
+        save_tld_cache(cache_path, tld_list)
+        return tld_list
+    
+    except requests.RequestException:
+        # Fall back to cached data if network fails
+        cached_data = load_tld_cache(cache_path)
+        if cached_data:
+            return cached_data
+        raise  # Re-raise if no cache available
+
+# The Caching part took more time than writing the whole code 😭😭😭. I now understand the pain programmers go through everyday.
 
 # Main Function:
 # Checks if the given url has a valid format and is reachable.
@@ -122,9 +173,7 @@ def linkgate(url):
     # This block verifies the TLD of the hostname (the .com/org/... part of hostname), if not, program exits.
     IDN = parsed.hostname.split(".")[-1]
     try:
-        TLD = requests.get(
-            "https://data.iana.org/TLD/tlds-alpha-by-domain.txt", timeout=5
-        ).text.split()
+        TLD = get_tld_list()
         if not IDN.upper() in TLD:
             return {
                 "valid": False,
@@ -156,6 +205,13 @@ def linkgate(url):
     # Checks if the url directs to a private, loopback, reserved or multicast website.
     ips = ipvcollector(url0)
     if ips and "iplist" in ips:
+        if not ips["iplist"]:  # Check if IP list is empty
+            return {
+                    "valid": False,
+                    "url": url0,
+                    "message": f"No IP addresses found for hostname: {url0}",
+                    }
+        
         for ip_str in ips["iplist"]:
             ipobject = ipaddress.ip_address(ip_str)
             if (
@@ -169,6 +225,8 @@ def linkgate(url):
                     "url": url0,
                     "message": f"Reserved/Loopback/private/multicast URL: {url0}",
                 }
+    else:
+        return ips
 
     # All the pre validation checks have been done, this part of code remakes the verified url into usable form.
     port = ""
@@ -176,17 +234,15 @@ def linkgate(url):
         port = ":" + parsed.netloc.split(":")[1]
     normalized_netloc = url0 + port
 
-    url1 = urlunparse(
-        (
+    url1 = urlunparse((
             parsed.scheme,
             normalized_netloc,
             parsed.path,
             parsed.params,
             parsed.query,
             parsed.fragment,
-        )
-    )
-
+            ))
+  
     # Validation Part
 
     # Using headers increases the chances of the website allowing this program to access it.
@@ -211,19 +267,12 @@ def linkgate(url):
     except requests.exceptions.RequestException as e:
         return {"valid": False, "url": url1, "message": f"Connection failed: {str(e)}"}
     
-    return url_final
-
-
-# TODO: Implement TLD list caching to improve performance and reduce network usage
-# - Store TLD list locally in a cache file (e.g., tld_cache.txt or JSON)
-# - Track cache timestamp to enable cache expiration (e.g., refresh if older than 7 days)
-# - On validation, check cache freshness and load cached TLD list if valid
-# - Refresh cache by fetching from https://data.iana.org/TLD/tlds-alpha-by-domain.txt when expired or missing
-# - Handle network failures gracefully by falling back to cached data if available
-# - Use file I/O (read/write), datetime for timestamps, and exception handling for robustness
-# - Integrate caching logic to replace live network calls in the TLD validation step
+    return {
+            "valid": True,
+            "url": url_final,
+            "message": "URL is valid and reachable"
+            }
 
 
 if __name__ == "__main__":
-    url = input("Enter url: ")
-    linkgate(url)
+    linkgate("www.fitgirlrepacks.org")

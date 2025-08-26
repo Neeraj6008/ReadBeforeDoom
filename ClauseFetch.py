@@ -12,17 +12,62 @@ import regex as re
 import urllib.parse as up
 from Linkgate import linkgate as lg
 
-terms_fragments = [
-    "by using this service", "by accessing this website", "you agree to",
-    "you hereby agree to be bound by", "limitation of liability", "to the fullest extent permitted by law",
-    "we reserve the right to", "without prior notice", "indemnify and hold harmless",
-    "governing law", "these terms constitute the entire agreement", "modification of terms",
-    "privay policy", "share your data", "retain your data", "what rights you have over your data"
+header = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Referer": "https://www.google.com/",
+        "Connection": "keep-alive",
+    }
+
+terms_fragments =[
+    # Agreement and acceptance phrases
+    "terms of service", "terms and conditions", "user agreement", "service agreement",
+    "by using", "by accessing", "by visiting", "you agree", "you accept", "you acknowledge",
+    "agreement", "accept", "acceptance", "binding", "bound", "constitute",
+    
+    # Legal and liability terms
+    "liability", "limitation of liability", "disclaimer", "warranty", "warranties",
+    "damages", "indemnify", "indemnification", "hold harmless", "at your own risk",
+    "disclaim", "exclude", "limit", "maximum extent", "fullest extent",
+    
+    # Rights and restrictions
+    "rights", "reserve the right", "intellectual property", "proprietary", "copyright",
+    "trademark", "license", "permitted", "prohibited", "restricted", "violation",
+    "infringement", "unauthorized", "modify", "distribute", "reproduce",
+    
+    # Service and usage terms
+    "service", "services", "website", "platform", "content", "materials",
+    "user", "users", "account", "registration", "access", "available",
+    "suspend", "terminate", "termination", "discontinue", "modify",
+    
+    # Privacy and data
+    "privacy", "privacy policy", "personal information", "data", "collect",
+    "information", "cookies", "tracking", "third party", "share", "disclose",
+    
+    # Payment and financial terms
+    "payment", "fees", "charges", "billing", "subscription", "refund",
+    "purchase", "transaction", "price", "cost", "currency",
+    
+    # Legal jurisdiction and disputes
+    "governing law", "jurisdiction", "dispute", "arbitration", "court",
+    "legal", "laws", "regulations", "compliance", "enforce", "enforcement",
+    
+    # Changes and updates
+    "changes", "modifications", "updates", "revisions", "notice", "notification",
+    "effective date", "last updated", "from time to time", "sole discretion",
+    
+    # Common legal phrases
+    "as is", "as available", "without warranty", "may not", "shall not",
+    "responsible", "responsibility", "obligation", "requirements", "conditions",
+    "subject to", "in accordance with", "breach", "violation", "compliance"
 ]
+
 
 # Helper function 1 to check if Terms and Conditions are in the current page:
 def tac_in_page(tac):
-    for i in ():
+    for i in tac.splitlines():
         if any(fragment in i.lower() for fragment in terms_fragments):
             return {
                 "success": True,
@@ -57,7 +102,7 @@ def tac_notin_page(soup, base_url):
         return {
             "success": False,
             "found_in_page": False,
-            "found_in_links": False,
+            "found_in_links": True,
             "content": None,
             "links": links,
             "error": None
@@ -75,8 +120,9 @@ def tac_notin_page(soup, base_url):
 
 # Main function starts here
 def Clausefetch(url):
+    # Checks the URL again just in case
     try:
-        response = r.get(url)
+        response = r.get(url, headers= header, timeout= 10)
     except r.exceptions.RequestException:
         return {
                 "success": False,
@@ -87,12 +133,14 @@ def Clausefetch(url):
                 "error": "Connection error while trying to fetch URL"
                 }
 
+    # Gets the text and whatever out of the url
     soup = b(response.text, 'lxml')
     tac = soup.text
 
     idkwhattonamevariablesatthispoint = tac_in_page(tac)
     helpmeplease = tac_notin_page(soup, url)
 
+    # If the page contains the T&Cs
     if idkwhattonamevariablesatthispoint["success"]:
         return {
                 "success": True,
@@ -103,19 +151,34 @@ def Clausefetch(url):
                 "error": None
                 }
     
-    #elif not idkwhattonamevariablesatthispoint["success"] and helpmeplease["links"]:
+    # If the page doesn't contain the T&Cs
+    elif not idkwhattonamevariablesatthispoint["success"]:
+        final_links = []
+        if helpmeplease["found_in_links"]:
+            links = helpmeplease["links"]
+            for l in links:
+                if "www." not in l:
+                    final_links.append(l.replace("://", "://www."))
+                else:
+                    final_links.append(l)
         
+            # Links extraction done, now time to extract the stuff from it
+            text = []  
+            for link in final_links:
+                print(f"Checking link: {link}")
+                try:
+                    response2 = r.get(link, headers= header, timeout= 5)
+                    print(f"Successfully fetched {link}, status: {response2.status_code}")
+                except r.exceptions.RequestException:
+                    continue
+                soup2 = b(response2.text, "lxml")
+                tac_final = soup2.text
+                
+                if tac_in_page(tac_final)["success"]:
+                    text.append(tac_in_page(tac_final)["content"])
 
-
-# TODO:
-# FIXTHATDAMNFKINGERROR!!!!!
-# 1. Implement recursive or iterative fetching of candidate links found by tac_notin_page
-#    to check those pages for Terms and Conditions content.
-#    - Limit depth or max number of links checked to avoid excessive crawling.
-# 2. Ensure Clausefetch returns consistent dictionary format in all cases,
-#    including when neither T&Cs nor candidate links are found (avoid returning False).
-# 3. (Optional) Add more detailed error handling for other exceptions or parse errors.
+            return text
 
 
 if __name__ == "__main__":
-    Clausefetch("https://www.fitgirlrepacks.org/privacy-policy/")
+    print(Clausefetch("https://www.fitgirlrepacks.org"))
