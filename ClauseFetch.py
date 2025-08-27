@@ -1,184 +1,234 @@
-'''
-What this function does:
-1. Gets the filtered url from linkgate
-2. Check if the link is valid (from the dictionary that is returned by linkgate)
-3. If its valid, extract all the stuff that matters (Terms and Conditions, Cookies, and whatever there is)
-4. Parse it and return it as readable text.
-'''
+# ClauseFetch.py — static-only T&C/Privacy extractor (finalized)
 
 import requests as r
 from bs4 import BeautifulSoup as b
-import regex as re
+import re
 import urllib.parse as up
-from Linkgate import linkgate as lg
+from typing import List, Dict, Any, Optional
 
+
+# Request headers: avoid 'br' to prevent undecodable Brotli without extra deps
 header = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Referer": "https://www.google.com/",
-        "Connection": "keep-alive",
-    }
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate",
+    "Referer": "https://www.google.com/",
+    "Connection": "keep-alive",
+}
 
-terms_fragments =[
+# Legal keyword fragments used for detection (broad but practical for static pages)
+terms_fragments = [
     # Agreement and acceptance phrases
     "terms of service", "terms and conditions", "user agreement", "service agreement",
     "by using", "by accessing", "by visiting", "you agree", "you accept", "you acknowledge",
     "agreement", "accept", "acceptance", "binding", "bound", "constitute",
-    
     # Legal and liability terms
     "liability", "limitation of liability", "disclaimer", "warranty", "warranties",
     "damages", "indemnify", "indemnification", "hold harmless", "at your own risk",
     "disclaim", "exclude", "limit", "maximum extent", "fullest extent",
-    
     # Rights and restrictions
     "rights", "reserve the right", "intellectual property", "proprietary", "copyright",
     "trademark", "license", "permitted", "prohibited", "restricted", "violation",
     "infringement", "unauthorized", "modify", "distribute", "reproduce",
-    
     # Service and usage terms
     "service", "services", "website", "platform", "content", "materials",
     "user", "users", "account", "registration", "access", "available",
     "suspend", "terminate", "termination", "discontinue", "modify",
-    
     # Privacy and data
     "privacy", "privacy policy", "personal information", "data", "collect",
     "information", "cookies", "tracking", "third party", "share", "disclose",
-    
     # Payment and financial terms
     "payment", "fees", "charges", "billing", "subscription", "refund",
     "purchase", "transaction", "price", "cost", "currency",
-    
     # Legal jurisdiction and disputes
     "governing law", "jurisdiction", "dispute", "arbitration", "court",
     "legal", "laws", "regulations", "compliance", "enforce", "enforcement",
-    
     # Changes and updates
     "changes", "modifications", "updates", "revisions", "notice", "notification",
     "effective date", "last updated", "from time to time", "sole discretion",
-    
     # Common legal phrases
     "as is", "as available", "without warranty", "may not", "shall not",
     "responsible", "responsibility", "obligation", "requirements", "conditions",
-    "subject to", "in accordance with", "breach", "violation", "compliance"
+    "subject to", "in accordance with", "breach", "violation", "compliance",
 ]
 
-
-# Helper function 1 to check if Terms and Conditions are in the current page:
-def tac_in_page(tac):
-    for i in tac.splitlines():
-        if any(fragment in i.lower() for fragment in terms_fragments):
-            return {
-                "success": True,
-                "found_in_page": True,
-                "found_in_links": False,
-                "content": tac,
-                "links": None,
-                "error": None
-            }
-    
-    return {
-        "success": False,
-        "found_in_page": False,
-        "found_in_links": False,
-        "content": None,
-        "links": None,
-        "error": None
-    }
-
-#Helper function 2 if Terms and Conditions are not in the current page (search for links)
-def tac_notin_page(soup, base_url):
-    links = []
-    keywords = ["terms", "conditions", "policy", "legal", "privacy"]
-
-    for a in soup.find_all('a', href=True):
-        href = a['href']
-        if any(keyword.lower() in href.lower() for keyword in keywords):
-            full_url = up.urljoin(base_url, href)
-            links.append(full_url)
-
-    if links:
-        return {
-            "success": False,
-            "found_in_page": False,
-            "found_in_links": True,
-            "content": None,
-            "links": links,
-            "error": None
-        }
-    else:
-        return {
-            "success": False,
-            "found_in_page": False,
-            "found_in_links": False,
-            "content": None,
-            "links": None,
-            "error": None
-        }
+LEGAL_LINK_KEYWORDS = ["terms", "privacy", "policy", "disclaimer", "legal"]
+MIN_LENGTH_HINT = 600  # helps avoid tiny/irrelevant matches
 
 
-# Main function starts here
-def Clausefetch(url):
-    # Checks the URL again just in case
-    try:
-        response = r.get(url, headers= header, timeout= 10)
-    except r.exceptions.RequestException:
-        return {
-                "success": False,
-                "found_in_page": False,
-                "found_in_links": False,
-                "content": None,
-                "links": None,
-                "error": "Connection error while trying to fetch URL"
-                }
+def normalized_html(resp: r.Response) -> str:
+    # Standardize text decoding; avoid ISO-8859-1 pitfalls common in requests
+    enc = (resp.encoding or "").lower()
+    if not enc or enc == "iso-8859-1":
+        resp.encoding = "utf-8"
+    return resp.text
 
-    # Gets the text and whatever out of the url
-    soup = b(response.text, 'lxml')
-    tac = soup.text
 
-    idkwhattonamevariablesatthispoint = tac_in_page(tac)
-    helpmeplease = tac_notin_page(soup, url)
+def clean_text_from_html(soup: b) -> str:
+    for tag in soup(["script", "style", "noscript"]):
+        tag.extract()
+    return soup.get_text(separator="\n", strip=True)
 
-    # If the page contains the T&Cs
-    if idkwhattonamevariablesatthispoint["success"]:
-        return {
-                "success": True,
-                "found_in_page": True,
-                "found_in_links": False,
-                "content": idkwhattonamevariablesatthispoint["content"],
-                "links": None,
-                "error": None
-                }
-    
-    # If the page doesn't contain the T&Cs
-    elif not idkwhattonamevariablesatthispoint["success"]:
-        final_links = []
-        if helpmeplease["found_in_links"]:
-            links = helpmeplease["links"]
-            for l in links:
-                if "www." not in l:
-                    final_links.append(l.replace("://", "://www."))
-                else:
-                    final_links.append(l)
-        
-            # Links extraction done, now time to extract the stuff from it
-            text = []  
-            for link in final_links:
-                print(f"Checking link: {link}")
+
+def tac_in_page(tac: str, soup: Optional[b] = None) -> Dict[str, Any]:
+    # Quick guard for clearly empty or trivial pages
+    if not tac or len(tac) < MIN_LENGTH_HINT:
+        return {"success": False, "content": None}
+
+    relevant_sections: List[str] = []
+    context_window = 5
+    lines = [line.strip() for line in tac.splitlines() if line.strip()]
+
+    for idx, line in enumerate(lines):
+        low = line.lower()
+        if any(fragment in low for fragment in terms_fragments):
+            start = max(0, idx - context_window)
+            end = min(len(lines), idx + context_window + 1)
+            content = "\n".join(lines[start:end])
+
+            # If we have structured HTML, prefer the immediate parent block’s text
+            if soup:
                 try:
-                    response2 = r.get(link, headers= header, timeout= 5)
-                    print(f"Successfully fetched {link}, status: {response2.status_code}")
-                except r.exceptions.RequestException:
-                    continue
-                soup2 = b(response2.text, "lxml")
-                tac_final = soup2.text
-                
-                if tac_in_page(tac_final)["success"]:
-                    text.append(tac_in_page(tac_final)["content"])
+                    found = soup.find(string=re.compile(re.escape(line), re.IGNORECASE))
+                    if found and found.parent:
+                        content = found.parent.get_text(separator="\n", strip=True)
+                except Exception:
+                    pass
 
-            return text
+            relevant_sections.append(content)
+
+    if relevant_sections:
+        combined = "\n\n".join(relevant_sections)
+        return {"success": True, "content": combined}
+
+    # Also try headings/title hints when body scan misses but soup exists
+    if soup:
+        headings = soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'title'])
+        for h in headings:
+            txt = h.get_text().lower()
+            if any(k in txt for k in ["terms", "conditions", "privacy", "policy", "legal", "agreement", "service"]):
+                return {"success": True, "content": tac}
+
+    return {"success": False, "content": None}
+
+
+def find_legal_links(soup: b, base_url: str) -> List[str]:
+    links = set()
+    for a in soup.find_all("a", href=True):
+        href = a["href"].strip() # type: ignore
+        text = a.get_text(strip=True).lower()
+        href_lower = href.lower()
+
+        candidate = any(k in href_lower for k in LEGAL_LINK_KEYWORDS) or any(
+            k in text for k in LEGAL_LINK_KEYWORDS
+        )
+        if not candidate:
+            continue
+
+        try:
+            full = up.urljoin(base_url, href)
+            parsed = up.urlparse(full)
+            if parsed.scheme in ("http", "https"):
+                links.add(full)
+        except Exception:
+            continue
+
+    return list(links)
+
+
+def guess_legal_paths(base_url: str) -> List[str]:
+    # Fallback probes when the homepage shows no visible legal links
+    common_paths = [
+        "/privacy", "/privacy-policy", "/policies",
+        "/terms", "/terms-of-service", "/terms-and-conditions",
+        "/legal",
+    ]
+    origin = up.urlunparse(up.urlparse(base_url)._replace(path="/", params="", query="", fragment=""))
+    return [up.urljoin(origin, p) for p in common_paths]
+
+
+def Clausefetch(url: str) -> Dict[str, Any]:
+    if not url.startswith(("http://", "https://")):
+        return {
+            "success": False, "found_in_page": False, "found_in_links": False,
+            "content": None, "links": None, "error": "Invalid URL format"
+        }
+
+    # Fetch homepage
+    try:
+        resp = r.get(url, headers=header, timeout=10)
+        resp.raise_for_status()
+    except r.exceptions.RequestException as e:
+        return {
+            "success": False, "found_in_page": False, "found_in_links": False,
+            "content": None, "links": None, "error": f"Connection error: {e}"
+        }
+
+    html = normalized_html(resp)
+    soup = b(html, "lxml")
+    page_text = clean_text_from_html(soup)
+
+    # 1) Try to detect in-page
+    in_page = tac_in_page(page_text, soup)
+    if in_page["success"]:
+        return {
+            "success": True, "found_in_page": True, "found_in_links": False,
+            "content": in_page["content"], "links": None, "error": None
+        }
+
+    # 2) Look for legal links (cross-domain allowed), else probe common paths
+    candidates = find_legal_links(soup, url)
+    if not candidates:
+        candidates = guess_legal_paths(url)
+
+    found_docs: List[Dict[str, str]] = []
+    for link in candidates[:8]:
+        try:
+            r2 = r.get(link, headers=header, timeout=7)
+            r2.raise_for_status()
+        except r.exceptions.RequestException:
+            continue
+
+        html2 = normalized_html(r2)
+        soup2 = b(html2, "lxml")
+        sub_text = clean_text_from_html(soup2)
+        sub_check = tac_in_page(sub_text, soup2)
+        if sub_check["success"]:
+            found_docs.append({"url": link, "content": sub_check["content"]})
+
+    if found_docs:
+        return {
+            "success": True, "found_in_page": False, "found_in_links": True,
+            "content": found_docs, "links": candidates, "error": None
+        }
+
+    return {
+        "success": False, "found_in_page": False, "found_in_links": False,
+        "content": None, "links": None, "error": None
+    }
 
 
 if __name__ == "__main__":
-    print(Clausefetch("https://www.fitgirlrepacks.org"))
+    test_url = input("Enter a URL: ").strip()
+    result = Clausefetch(test_url)
+
+    if result.get("success"):
+        if result.get("found_in_page"):
+            print("T&C content found in page.\n")
+            content = result.get("content")
+            print(str(content)[:1200])
+        elif result.get("found_in_links"):
+            print("T&C content found in linked pages.\n")
+            content = result.get("content")
+            if isinstance(content, list) and content:
+                first = content[0]
+                print(f"Source: {first.get('url', 'unknown')}\n")
+                print(first.get("content", "")[:1200])
+            else:
+                print(str(content)[:1200])
+        else:
+            print("Success but no flags set; inspect content:\n")
+            print(str(result.get("content"))[:800])
+    else:
+        print("No T&C content found or error:", result.get("error"))

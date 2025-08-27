@@ -1,5 +1,6 @@
 """
 What linkgate(url) does:
+
 1. Takes a url
 2. Verifies the format of the url, or returns "url is invalid"
 3. Verifies if the url is reachable
@@ -8,80 +9,65 @@ What linkgate(url) does:
 ✅ = function is done 100%
 """
 
-
 import os
 import json
 import time
 import sys
 import re
 import ipaddress
-from urllib.parse import urlparse, urlunparse
-
+from urllib.parse import urlparse, urlunparse, urljoin  # added urljoin for relative redirects
 import requests
 import idna
 import dns.resolver
-
-import whitelist
+import dns.name
 
 # Helper Functions:
 def ipvcollector(hostname):
     try:
         answers = dns.resolver.resolve(hostname, "A")
-        ipv4_add = [rdata.address for rdata in answers]
+        ipv4_add = [rdata.to_text() for rdata in answers]
     except dns.resolver.NXDOMAIN:
         return {
             "valid": False,
             "url": hostname,
             "message": f"Hostname does not exist: {hostname}",
         }
-
     except dns.resolver.Timeout:
         return {
             "valid": False,
             "url": hostname,
             "message": f"DNS query timed out for: {hostname}",
         }
-
     except dns.resolver.NoAnswer:
         ipv4_add = []
-
     except dns.name.LabelTooLong:
         return {"valid": False, "url": hostname, "message": f"DNS label too long in hostname: {hostname}"}
 
     try:
         answers6 = dns.resolver.resolve(hostname, "AAAA")  # IPv6
-        ipv6_add = [rdata.address for rdata in answers6]
+        ipv6_add = [rdata.to_text() for rdata in answers6]
     except (dns.resolver.NXDOMAIN, dns.resolver.Timeout, dns.resolver.NoAnswer):
         ipv6_add = []
 
     return {"iplist": ipv4_add + ipv6_add}
 
 # Checks if the hostname (specifically the subdomain part) is valid or not.
-import re
-
 def is_valid_hostname(hostname):
     if len(hostname) > 253:
         return False
-
     labels = hostname.split(".")
-
     # Check each label length must be <= 63
     for label in labels:
         if len(label) > 63:
             return False
-
     pattern = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", re.IGNORECASE)
-
     for label in labels:
         if not pattern.match(label):
             return False
-
     for label in labels:
         if re.match(r"^(.)\1{3,}$", label, re.IGNORECASE):
             return False
-
     return True
-
 
 # Function to check the status code of the website and check if we can continue with scraping the website.
 def status_code_checker(response):
@@ -92,7 +78,6 @@ def status_code_checker(response):
     else:
         return {"valid": False, "redirect/link": False}
 
-
 # Functions to cache the TLD IDNA list, because getting it each time from the internet is wasteful.
 def get_tld_cache_path():
     cache_dir = os.path.expanduser("~/.linkgate_cache")
@@ -102,7 +87,6 @@ def get_tld_cache_path():
 def is_cache_valid(cache_path, max_age_seconds=604800):  # One week = 604800 seconds
     if not os.path.exists(cache_path):
         return False
-    
     file_age = time.time() - os.path.getmtime(cache_path)
     return file_age < max_age_seconds
 
@@ -119,24 +103,20 @@ def save_tld_cache(cache_path, tld_list):
 
 def get_tld_list():
     cache_path = get_tld_cache_path()
-    
     # Try to use cached data first
     if is_cache_valid(cache_path):
         cached_data = load_tld_cache(cache_path)
         if cached_data:
             return cached_data
-    
     # Fetch fresh data if cache is invalid/missing
     try:
         response = requests.get(
-            "https://data.iana.org/TLD/tlds-alpha-by-domain.txt", 
+            "https://data.iana.org/TLD/tlds-alpha-by-domain.txt",
             timeout=10)
         tld_list = response.text.split()
-        
         # Save to cache
         save_tld_cache(cache_path, tld_list)
         return tld_list
-    
     except requests.RequestException:
         # Fall back to cached data if network fails
         cached_data = load_tld_cache(cache_path)
@@ -144,43 +124,39 @@ def get_tld_list():
             return cached_data
         raise  # Re-raise if no cache available
 
-# The Caching part took more time than writing the whole code 😭😭😭. I now understand the pain programmers go through everyday.
-
 # Main Function:
 # Checks if the given url has a valid format and is reachable.
 def linkgate(url):
     parsed = urlparse(url)
     if not parsed.scheme:
         url = "https://" + url
-        parsed = urlparse(url)
+        parsed = urlparse(url)  # ensure scheme added
 
-    # Checks if the scheme of the url follows http/https scheme or any other (rejects any other scheme).
-    elif parsed.scheme not in ("http", "https"):
+    # After normalizing the scheme, validate scheme/host in independent checks
+    if parsed.scheme not in ("http", "https"):
         return {
             "valid": False,
             "url": url,
             "message": "The given link doesn't have a valid scheme (http or https).",
         }
 
-    # Checks if the hostname (the www.site.com/org/... part of the link.) is valid or not.
-    elif parsed.hostname and not is_valid_hostname(parsed.hostname):
+    if parsed.hostname and not is_valid_hostname(parsed.hostname):
         return {
             "valid": False,
             "url": url,
             "message": "The hostname of the given url is invalid.",
         }
 
-    # This block verifies the TLD of the hostname (the .com/org/... part of hostname), if not, program exits.
-    IDN = parsed.hostname.split(".")[-1]
+    # This block verifies the TLD of the hostname (the .com/org/... part of hostname)
+    IDN = parsed.hostname.split(".")[-1] if parsed.hostname else ""
     try:
         TLD = get_tld_list()
-        if not IDN.upper() in TLD:
+        if IDN.upper() not in TLD:
             return {
                 "valid": False,
                 "url": url,
                 "message": "This url has an invalid hostname.",
             }
-
     except requests.RequestException:
         return {
             "valid": False,
@@ -188,63 +164,66 @@ def linkgate(url):
             "message": "Couldn't load TLDs from https://data.iana.org/TLD/tlds-alpha-by-domain.txt",
         }
 
-    # This block check if the hostname is a non-ASCII hostname, if yes, it decodes into an ASCII-equivalent.
+    # Decode Internationalized domain to ASCII-equivalent if needed.
     try:
-        if re.search(r"[^\x00-\x7F]", parsed.hostname):
+        if parsed.hostname and re.search(r"[^\x00-\x7F]", parsed.hostname):
             url0 = idna.encode(parsed.hostname).decode("ascii")
         else:
-            url0 = parsed.hostname
-
+            url0 = parsed.hostname or ""
     except idna.IDNAError:
         return {
             "valid": False,
-            "url": url0,
+            "url": parsed.hostname or "",
             "message": f"Invalid Internationalized domain: {parsed.hostname}",
         }
 
     # Checks if the url directs to a private, loopback, reserved or multicast website.
     ips = ipvcollector(url0)
-    if ips and "iplist" in ips:
-        if not ips["iplist"]:  # Check if IP list is empty
-            return {
-                    "valid": False,
-                    "url": url0,
-                    "message": f"No IP addresses found for hostname: {url0}",
-                    }
-        
-        for ip_str in ips["iplist"]:
-            ipobject = ipaddress.ip_address(ip_str)
-            if (
-                ipobject.is_private
-                or ipobject.is_loopback
-                or ipobject.is_reserved
-                or ipobject.is_multicast
-            ):
-                return {
-                    "valid": False,
-                    "url": url0,
-                    "message": f"Reserved/Loopback/private/multicast URL: {url0}",
-                }
-    else:
+    # If ipvcollector returned an error dict (without "iplist"), pass it through
+    if isinstance(ips, dict) and "iplist" not in ips:
         return ips
 
-    # All the pre validation checks have been done, this part of code remakes the verified url into usable form.
+    iplist = ips.get("iplist", []) if isinstance(ips, dict) else []
+    if not iplist:  # Check if IP list is empty
+        return {
+            "valid": False,
+            "url": url0,
+            "message": f"No IP addresses found for hostname: {url0}",
+        }
+
+    for ip_str in iplist:
+        ipobject = ipaddress.ip_address(ip_str)
+        if (
+            ipobject.is_private
+            or ipobject.is_loopback
+            or ipobject.is_reserved
+            or ipobject.is_multicast
+        ):
+            return {
+                "valid": False,
+                "url": url0,
+                "message": f"Reserved/Loopback/private/multicast URL: {url0}",
+            }
+    # (no premature return here; proceed when all IPs are acceptable)
+
+    # All the pre validation checks have been done, remake the verified url into usable form.
     port = ""
-    if ":" in parsed.netloc:
-        port = ":" + parsed.netloc.split(":")[1]
+    if parsed.netloc and ":" in parsed.netloc:
+        parts = parsed.netloc.split(":")
+        if len(parts) == 2 and parts[1].isdigit():
+            port = ":" + parts[1]
+
     normalized_netloc = url0 + port
-
     url1 = urlunparse((
-            parsed.scheme,
-            normalized_netloc,
-            parsed.path,
-            parsed.params,
-            parsed.query,
-            parsed.fragment,
-            ))
-  
-    # Validation Part
+        parsed.scheme,
+        normalized_netloc,
+        parsed.path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment,
+    ))
 
+    # Validation Part
     # Using headers increases the chances of the website allowing this program to access it.
     header = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
@@ -254,25 +233,30 @@ def linkgate(url):
         "Referer": "https://www.google.com/",
         "Connection": "keep-alive",
     }
+
     try:
-        response = requests.head(url1, timeout=5, headers=header)
+        # Avoid auto-follow so we can normalize relative Location headers
+        response = requests.head(url1, timeout=5, headers=header, allow_redirects=False)
         status_code_valid = status_code_checker(response)
+        redir = status_code_valid.get("redirect/link")
         if status_code_valid["valid"]:
-            if status_code_valid["redirect/link"]:
-                url_final = status_code_valid["redirect/link"]
+            if isinstance(redir, str) and redir:
+                # Only join when it's actually a string (relative or absolute)
+                url_final = urljoin(url1, redir)
             else:
-                url_final = url1
+                # For 2xx (no Location) or when redirect/link isn't a string
+                url_final = response.url or url1
         else:
             return {"valid": False, "url": url1, "message": "Invalid response status code"}
+    
     except requests.exceptions.RequestException as e:
         return {"valid": False, "url": url1, "message": f"Connection failed: {str(e)}"}
-    
-    return {
-            "valid": True,
-            "url": url_final,
-            "message": "URL is valid and reachable"
-            }
 
+    return {
+        "valid": True,
+        "url": url_final,
+        "message": "URL is valid and reachable",
+    }
 
 if __name__ == "__main__":
-    linkgate("www.fitgirlrepacks.org")
+    print(linkgate("www.fitgirlrepacks.org")["url"])
