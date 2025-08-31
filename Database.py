@@ -5,7 +5,7 @@ import hashlib
 
 # This function checks if the entered link is already in a mysql_database or not, if yes, returns the prestored analysis results
 # and if not, continues to the next function.
-def sql_cache_check(link: str):
+def sql_cache_check(link):
     try:
         connect = pms.connect(
             host='localhost', 

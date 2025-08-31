@@ -1,64 +1,16 @@
-"""
-Analyze Terms & Conditions text to detect potential risks and provide safety scoring.
-
-Goals:
-- Use spaCy to preprocess input text by splitting it into sentences and filtering out
-  stop words and punctuation for clean pattern matching.
-- Detect risky legal clauses by applying regex patterns to the cleaned text.
-- Map detected risks back to their original sentences for meaningful context.
-- Calculate an overall safety rating (1-10) based on severity and number of risks found.
-- Generate a human-readable recommendation (ex: accept, proceed with caution, reject).
-- Return structured results including suspicious clauses, safety rating, and recommendation
-  for integration with the caching and storage layers of the ReadBeforeDoom project.
-
-  A very rough pseudo code for what im doing here:
-
-  function textsifter(tctxt):
- Step 1: Use spaCy to split text into sentences
-    sentences = spacy_split_into_sentences(text)
-    
- Step 2: Clean and preprocess text     
-    cleaned_text = preprocess_text(text)  # lowercase, remove stop words/punctuation
-    
- Step 3: Define risk patterns (regex) for detection
-    risk_patterns = {
-        "data_collection": "regex_pattern_1",
-        "liability_clause": "regex_pattern_2",
-        "change_clause": "regex_pattern_3",
-         ... more patterns ...
-    }
-
-    risks_found = {}
-    
- Step 4: Search cleaned_text for each pattern
-    for category, pattern in risk_patterns:
-        if match found:
-            risks_found[category] = matched phrases / sentences
-    
- Step 5: Map each found risk to the sentence(s) containing it
-    suspicious_clauses = []
-    for sentence in sentences:
-        for risk in risks_found:
-            if sentence contains that risk pattern:
-                suspicious_clauses.append(sentence)
-    
- Step 6: Calculate safety score from risks_found
-    safety_score = calculate_score(risks_found)
-    
- Step 7: Generate recommendation based on score
-    recommendation = generate_recommendation(safety_score)
-    
- Step 8: Return final analysis dictionary
-    return {
-        'suspicious_clauses': suspicious_clauses,
-        'safety_rating': safety_score,
-        'recommendation': recommendation,
-    }
-
-"""
-
 import spacy as s
+import re
 
+
+# The following is the list of risk patterns that I will search in the text (and hopefully succeed)
+risk_patterns = {
+    'data_collection': r'(collect|store|process|gather|track).*(personal|data|information)',
+    'third_party_sharing': r'(share|disclose|transfer|provide).*(third.?party|partner|affiliate)',
+    'liability_disclaimer': r'(not liable|disclaim|exclude|limit liability|no responsibility)',
+    'unilateral_changes': r'(modify|change|alter|update).*(without notice|at any time|sole discretion)',
+    'broad_permissions': r'(any purpose|unlimited|perpetual|irrevocable)',
+    'content_rights': r'(license|grant|assign).*(content|material|intellectual property)'
+}
 
 # Cleans and unclutters text for easier processing it using textsifter.
 def text_preprocessor(txt : str):
@@ -83,16 +35,71 @@ def text_preprocessor(txt : str):
     
     return {"cleaned stuff" : cleaned_sent}
 
+# Risk score checker:
+def risk_analysis(risklen : list):
+    score_initial = 10
+    risk_count = len(risklen)
+
+    if risk_count >= 5:
+        safety_score = 2
+    elif risk_count >= 3:
+        safety_score = 4
+    elif risk_count >= 2:
+        safety_score = 6
+    elif risk_count >= 1:
+        safety_score = 7
+    else:
+        safety_score = 9
+    # omg I didn't expect long lines of if-elif blocks to only be used like one time?!?!?!
+
+
+    if safety_score >= 8:
+        recommendation = "The T&Cs look fine, you can continue..."
+    
+    elif 8 > safety_score >= 6:
+        recommendation = "Proceed with caution"
+
+    else:
+        recommendation = "At this point ur just walking into a rattrap bruhh"
+
+    return {
+        "safety score" : f"{safety_score}/10",
+        "recommendation" : recommendation,
+        "risk count" : risk_count
+    }
+
 
 def textsifter(txt : str):
-    cleantxt = text_preprocessor(txt)
+
+    cleantxt = text_preprocessor(txt)["cleaned stuff"]  # NOTE: This is a List of sentences
+
+
+    # The for Loop that checks for the risks starts from here:
+    risks_found = []
+    sus_clauses = []
     
+    for sent in cleantxt:
+        for risk_category, pattern in risk_patterns.items():
+            match = re.search(pattern, sent, re.IGNORECASE)
+            if match:
+                risks_found.append(risk_category)
+                sus_clauses.append(sent)
+                break
     
 
+    # Calculates the safety score (from 1 to 10)
+    ra = risk_analysis(risks_found)
 
 
+    return {
+            'suspicious_clauses': sus_clauses[:5],  # Limit to top 5
+            'safety_rating': ra["safety score"],
+            'recommendation': ra["recommendation"],
+            'risks_found': ra["risk count"]
+        }
+            
 
 if __name__ == "__main__":
-    from ClauseFetch import Clausefetch as cf
-    text = cf("https://en.wikipedia.org/wiki/William_C._Brennan") 
-    print(text_preprocessor(text["content"]))
+    print("enter Text below:")
+    text = input()
+    print(textsifter(text))
