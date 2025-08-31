@@ -7,19 +7,19 @@ to provide comprehensive analysis of website Terms & Conditions for potential ri
 This module serves as the primary entry point and orchestrates the complete pipeline:
 1. URL validation and sanitization (linkgate module)
 2. Terms & Conditions text extraction (clausefetch module) 
-3. Natural language processing and risk detection (textmine module)
+3. Natural language processing and risk detection (textsifter module)
 4. Hash-based caching for performance optimization
 5. Database storage and retrieval of analysis results
 6. User-friendly risk scoring and recommendations
 
 Components Integrated:
 ---------------------
-- linkgate.py: URL validation and safety checks
-- clausefetch.py: Web scraping and T&C text extraction  
-- textmine.py: spaCy/regex-based risk pattern detection
-- Database layer: SQLite storage with hash-based caching
+- Linkgate.py: URL validation and safety checks
+- ClauseFetch.py: Web scraping and T&C text extraction  
+- textsifter.py: spaCy/regex-based risk pattern detection
+- Database.py: SQLite storage with hash-based caching
 - Risk scoring: 1-10 safety rating system
-- Recommendation engine: Very basic, if-elif block, but good enough for now
+- Recommendation engine: User-friendly guidance
 
 Main Functions:
 --------------
@@ -38,25 +38,68 @@ Example Output:
 {
     'url': 'https://example.com/terms',
     'safety_rating': '4/10',
-    'recommendation': 'At this point ur just walking into a rattrap bruhh',
+    'recommendation': 'High risk - consider alternatives',
     'suspicious_clauses': ['We collect personal data...', 'Company not liable...'],
     'risks_found': 3
 }
 
-Author: Neeraj
+Author: [Your Name]
 Project: ReadBeforeDoom - CS Project
-Timeline: Completed under pressure in final weeks before half-yearly exams (can you imagine what it was
-like when I realized the time to complete this project went from 5 months to 1 month?!!?!!? )
+Timeline: Completed under pressure in final weeks before half-yearly exams
 """
 
-# Import all of the lego blocks (this is so satisfying)
+# Import all the modules we created
 from Linkgate import linkgate
 from ClauseFetch import Clausefetch  
 from textsifter import textsifter
 from Database import sql_cache_check, store_analysis_result
 
-def check_terms_and_conditions(url):
+def show_disclaimer():
+    """
+    Shows disclaimer and gets user acceptance before running the program.
+    Returns True if accepted, False if rejected.
+    """
+    print("=" * 70)
+    print("🛡️  READBEFOREDOOM DISCLAIMER")
+    print("=" * 70)
+    print()
+    print("📋 LEGAL NOTICE:")
+    print("By using this program, you accept that if you make your decisions")
+    print("based on the results of this program, and it turns out to be harmful")
+    print("to you in any way, I am NOT liable for it.")
+    print()
+    print("⚠️  VERSION WARNING:")
+    print("This program is still in VERSION 0, and there WILL be some false")
+    print("positives and errors, so mind you.")
+    print()
+    print("😄 META-IRONY ALERT:")
+    print("It would be ironic if the above stuff ends up sounding like those")
+    print("general long-ass Terms & Conditions we're trying to protect you from, right?")
+    print()
+    print("=" * 70)
+    
+    while True:
+        print("\nDo you accept these terms? (Type 'accept' or 'reject')")
+        choice = input("👉 Your choice: ").strip().lower()
+        
+        if choice in ['accept', 'a', 'yes', 'y']:
+            print("\n✅ Terms accepted! Welcome to ReadBeforeDoom!")
+            print("🚀 Let's analyze some Terms & Conditions!\n")
+            return True
+        elif choice in ['reject', 'r', 'no', 'n']:
+            print("\n❌ Terms rejected.")
+            print("🏃‍♂️ Thanks for considering ReadBeforeDoom. Goodbye!")
+            return False
+        else:
+            print("❓ Please type 'accept' or 'reject'")
 
+def check_terms_and_conditions(url):
+    """
+    Main function that checks a website's Terms & Conditions for safety.
+    
+    Takes a website URL and returns safety analysis results.
+    """
+    
     print(f"Analyzing website: {url}")
     
     # Step 1: Check if we already analyzed this URL before
@@ -185,9 +228,12 @@ def print_results(result):
 
 def main():
     """
-    Main program that asks user for URL and shows results.
+    Main program with disclaimer check.
     """
-    print("Welcome to ReadBeforeDoom!")
+    # Show disclaimer first
+    if not show_disclaimer():
+        return  # Exit if user rejects
+    
     print("This program analyzes website Terms & Conditions for safety.")
     print()
     
@@ -217,6 +263,19 @@ def main():
             print(f"\nUnexpected error: {e}")
             print("Please try again with a different URL.")
 
+# Test function for development
+def test_program():
+    """
+    Test the program with a sample URL.
+    """
+    test_url = "https://www.google.com"
+    print(f"Testing with URL: {test_url}")
+    result = check_terms_and_conditions(test_url)
+    print_results(result)
 
 if __name__ == "__main__":
+    # Uncomment the line below to run a test instead of interactive mode
+    # test_program()
+    
+    # Run the main interactive program
     main()
