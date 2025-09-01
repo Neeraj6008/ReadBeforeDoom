@@ -35,7 +35,7 @@ def text_preprocessor(txt : str):
     
     return {"cleaned stuff" : cleaned_sent}
 
-# Risk score checker:
+# Risk checker:
 def risk_analysis(risklen : list):
     score_initial = 10
     risk_count = len(risklen)
@@ -97,7 +97,6 @@ def textsifter(txt : str):
             'recommendation': ra["recommendation"],
             'risks_found': ra["risk count"]
         }
-            
 
 if __name__ == "__main__":
     print("enter Text below:")

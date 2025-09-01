@@ -7,54 +7,32 @@ import urllib.parse as up
 from typing import List, Dict, Any, Optional
 
 
-# Request headers: avoid 'br' to prevent undecodable Brotli without extra deps
-header = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate",
-    "Referer": "https://www.google.com/",
-    "Connection": "keep-alive",
-}
-
-# Legal keyword fragments used for detection (broad but practical for static pages)
+# Legal keyword fragments used for detection (disclaimer: very big)
 terms_fragments = [
-    # Agreement and acceptance phrases
     "terms of service", "terms and conditions", "user agreement", "service agreement",
     "by using", "by accessing", "by visiting", "you agree", "you accept", "you acknowledge",
     "agreement", "accept", "acceptance", "binding", "bound", "constitute",
-    # Legal and liability terms
     "liability", "limitation of liability", "disclaimer", "warranty", "warranties",
     "damages", "indemnify", "indemnification", "hold harmless", "at your own risk",
     "disclaim", "exclude", "limit", "maximum extent", "fullest extent",
-    # Rights and restrictions
     "rights", "reserve the right", "intellectual property", "proprietary", "copyright",
     "trademark", "license", "permitted", "prohibited", "restricted", "violation",
     "infringement", "unauthorized", "modify", "distribute", "reproduce",
-    # Service and usage terms
     "service", "services", "website", "platform", "content", "materials",
     "user", "users", "account", "registration", "access", "available",
     "suspend", "terminate", "termination", "discontinue", "modify",
-    # Privacy and data
     "privacy", "privacy policy", "personal information", "data", "collect",
     "information", "cookies", "tracking", "third party", "share", "disclose",
-    # Payment and financial terms
     "payment", "fees", "charges", "billing", "subscription", "refund",
     "purchase", "transaction", "price", "cost", "currency",
-    # Legal jurisdiction and disputes
     "governing law", "jurisdiction", "dispute", "arbitration", "court",
     "legal", "laws", "regulations", "compliance", "enforce", "enforcement",
-    # Changes and updates
     "changes", "modifications", "updates", "revisions", "notice", "notification",
     "effective date", "last updated", "from time to time", "sole discretion",
-    # Common legal phrases
     "as is", "as available", "without warranty", "may not", "shall not",
     "responsible", "responsibility", "obligation", "requirements", "conditions",
     "subject to", "in accordance with", "breach", "violation", "compliance",
 ]
-
-LEGAL_LINK_KEYWORDS = ["terms", "privacy", "policy", "disclaimer", "legal"]
-MIN_LENGTH_HINT = 600  # helps avoid tiny/irrelevant matches
 
 
 def normalized_html(resp: r.Response) -> str:
@@ -72,6 +50,7 @@ def clean_text_from_html(soup: b) -> str:
 
 
 def tac_in_page(tac: str, soup: Optional[b] = None) -> Dict[str, Any]:
+    MIN_LENGTH_HINT = 600  # helps avoid tiny/irrelevant matches
     # Quick guard for clearly empty or trivial pages
     if not tac or len(tac) < MIN_LENGTH_HINT:
         return {"success": False, "content": None}
@@ -114,6 +93,7 @@ def tac_in_page(tac: str, soup: Optional[b] = None) -> Dict[str, Any]:
 
 
 def find_legal_links(soup: b, base_url: str) -> List[str]:
+    LEGAL_LINK_KEYWORDS = ["terms", "privacy", "policy", "disclaimer", "legal"]
     links = set()
     for a in soup.find_all("a", href=True):
         href = a["href"].strip() # type: ignore
@@ -147,6 +127,14 @@ def guess_legal_paths(base_url: str) -> List[str]:
     origin = up.urlunparse(up.urlparse(base_url)._replace(path="/", params="", query="", fragment=""))
     return [up.urljoin(origin, p) for p in common_paths]
 
+header = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate",
+    "Referer": "https://www.google.com/",
+    "Connection": "keep-alive",
+}
 
 def Clausefetch(url: str) -> Dict[str, Any]:
     if not url.startswith(("http://", "https://")):

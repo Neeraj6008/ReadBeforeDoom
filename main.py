@@ -43,7 +43,7 @@ Example Output:
     'risks_found': 3
 }
 
-Author: [Your Name]
+Author: Neeraj
 Project: ReadBeforeDoom - CS Project
 Timeline: Completed under pressure in final weeks before half-yearly exams
 """
@@ -59,24 +59,31 @@ def show_disclaimer():
     Shows disclaimer and gets user acceptance before running the program.
     Returns True if accepted, False if rejected.
     """
-    print("=" * 70)
+    separator = "=" * 70
+    print(separator)
     print("🛡️  READBEFOREDOOM DISCLAIMER")
-    print("=" * 70)
+    print(separator)
+    print('''
+          
+          📋 LEGAL NOTICE:
+          
+          ''')
+    print(
+        "By using this program, you accept that if you make your decisions\n"
+        "based on the results of this program, and it turns out to be harmful\n"
+        "to you in any way, I am NOT liable for it."
+    )
+    print('''
+          
+          ⚠️  VERSION WARNING:
+          
+          ''')
+    print(
+        "This program is still in VERSION 0, and there WILL be some false\n"
+        "positives and errors, so mind you."
+    )
     print()
-    print("📋 LEGAL NOTICE:")
-    print("By using this program, you accept that if you make your decisions")
-    print("based on the results of this program, and it turns out to be harmful")
-    print("to you in any way, I am NOT liable for it.")
-    print()
-    print("⚠️  VERSION WARNING:")
-    print("This program is still in VERSION 0, and there WILL be some false")
-    print("positives and errors, so mind you.")
-    print()
-    print("😄 META-IRONY ALERT:")
-    print("It would be ironic if the above stuff ends up sounding like those")
-    print("general long-ass Terms & Conditions we're trying to protect you from, right?")
-    print()
-    print("=" * 70)
+    print(separator)
     
     while True:
         print("\nDo you accept these terms? (Type 'accept' or 'reject')")
