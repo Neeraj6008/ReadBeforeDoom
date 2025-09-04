@@ -55,8 +55,7 @@ def store_analysis_result(url, tc_text, analysis_result):
             host='localhost', 
             user='root', 
             password='MySQL_Neeraj@25', 
-            db='tc_analysis',
-            cursorclass=DictCursor
+            db='tc_analysis'
         )
         cursor = connect.cursor()
         
@@ -89,43 +88,43 @@ def store_analysis_result(url, tc_text, analysis_result):
             risk_categories_json = str(risk_categories)
         
         # Check if record already exists
-        cursor.execute('SELECT id FROM tc_analysis_results WHERE url_hash = %s', (url_hash,))
+        cursor.execute('SELECT * FROM tc_analysis_results WHERE url_hash = %s', (url_hash,))
         existing = cursor.fetchone()
         
         if existing:
-            # Update existing record
-            update_query = """
-            UPDATE tc_analysis_results 
-            SET url = %s, domain = %s, tc_text_hash = %s, tc_length = %s, 
-                suspicious_clauses = %s, safety_rating = %s, recommendation = %s, 
-                risk_categories = %s, updated_at = NOW()
-            WHERE url_hash = %s
-            """
-            cursor.execute(update_query, (
-                url, domain, tc_hash, len(tc_text),
-                suspicious_clauses_json, safety_rating, recommendation,
-                risk_categories_json, url_hash
-            ))
-            print("Updated existing database record")
+            print("Record already exists in database, skipping...")
+            cursor.close()
+            connect.close()
+            return {
+                'success': True,
+                'message': 'Record already exists'
+            }
+        
+        # Extract just the number from safety_rating (e.g., "4/10" -> "4")
+        if "/" in safety_rating:
+            safety_rating_short = safety_rating.split("/")[0]
         else:
-            # Insert new record
-            insert_query = """
-            INSERT INTO tc_analysis_results 
-            (url, url_hash, domain, tc_text_hash, tc_length, suspicious_clauses, 
-            safety_rating, recommendation, risk_categories, created_at, updated_at) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
-            """
-            cursor.execute(insert_query, (
-                url, url_hash, domain, tc_hash, len(tc_text),
-                suspicious_clauses_json, safety_rating, recommendation,
-                risk_categories_json
-            ))
-            print("Inserted new database record")
+            safety_rating_short = safety_rating[:2]  # Just in case
+        
+        # Simple insert query without updated_at column
+        insert_query = """
+        INSERT INTO tc_analysis_results 
+        (url, url_hash, domain, tc_text_hash, tc_length, suspicious_clauses, 
+        safety_rating, recommendation, risk_categories) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        
+        cursor.execute(insert_query, (
+            url, url_hash, domain, tc_hash, len(tc_text),
+            suspicious_clauses_json, safety_rating_short, recommendation,
+            risk_categories_json
+        ))
         
         connect.commit()
         cursor.close()
         connect.close()
         
+        print("New record inserted successfully")
         return {
             'success': True,
             'message': 'Analysis result stored successfully'
@@ -138,49 +137,5 @@ def store_analysis_result(url, tc_text, analysis_result):
             'message': f"Error storing to database: {e}"
         }
 
-# Optional: Function to create the database table if it doesn't exist
-def create_table_if_not_exists():
-    """
-    Creates the tc_analysis_results table if it doesn't exist.
-    Run this once to set up your database schema.
-    """
-    try:
-        connect = pms.connect(
-            host='localhost', 
-            user='root', 
-            password='MySQL_Neeraj@25', 
-            db='tc_analysis'
-        )
-        cursor = connect.cursor()
-        
-        create_table_query = """
-        CREATE TABLE IF NOT EXISTS tc_analysis_results (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            url VARCHAR(500) NOT NULL,
-            url_hash VARCHAR(64) UNIQUE NOT NULL,
-            domain VARCHAR(255),
-            tc_text_hash VARCHAR(64),
-            tc_length INT,
-            suspicious_clauses TEXT,
-            safety_rating VARCHAR(10),
-            recommendation TEXT,
-            risk_categories TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_url_hash (url_hash),
-            INDEX idx_domain (domain)
-        )
-        """
-        
-        cursor.execute(create_table_query)
-        connect.commit()
-        cursor.close()
-        connect.close()
-        print("Database table created successfully (or already exists)")
-        
-    except Exception as e:
-        print(f"Error creating table: {e}")
-
 if __name__ == "__main__":
-    # Run this to create the table structure
-    create_table_if_not_exists()
+    print("Database module loaded. Your existing table structure will be used.")
