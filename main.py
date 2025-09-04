@@ -51,7 +51,7 @@ Timeline: Completed under pressure in final weeks before half-yearly exams
 # Import all the modules we created
 from Linkgate import linkgate
 from ClauseFetch import Clausefetch  
-from textsifter import textsifter
+from textsifter import textsifter  # Fixed: Use the main textsifter, not temp version
 from Database import sql_cache_check, store_analysis_result
 
 def show_disclaimer():
@@ -61,7 +61,7 @@ def show_disclaimer():
     """
     separator = "=" * 70
     print(separator)
-    print("🛡️  READBEFOREDOOM DISCLAIMER")
+    print("🛡️ READBEFOREDOOM DISCLAIMER")
     print(separator)
     print('''
           
@@ -75,7 +75,7 @@ def show_disclaimer():
     )
     print('''
           
-          ⚠️  VERSION WARNING:
+          ⚠️ VERSION WARNING:
           
           ''')
     print(
@@ -175,17 +175,25 @@ def check_terms_and_conditions(url):
     # Step 5: Save results to database
     print("Saving results to database...")
     try:
-        store_analysis_result(
+        # Fixed: Create proper analysis result structure
+        analysis_result = {
+            'suspicious_clauses': analysis.get('suspicious_clauses', []),
+            'safety_rating': analysis.get('safety_rating', '0/10'),
+            'recommendation': analysis.get('recommendation', 'No analysis available'),
+            'risk_categories': analysis.get('risks_found', 0)  # Just the count for now
+        }
+        
+        store_result = store_analysis_result(
             url=verified_url,
             tc_text=tc_text,
-            analysis_result={
-                'suspicious_clauses': str(analysis['suspicious_clauses']),
-                'safety_rating': analysis['safety_rating'],
-                'recommendation': analysis['recommendation'],
-                'risk_categories': str(analysis['risks_found'])
-            }
+            analysis_result=analysis_result
         )
-        print("Results saved successfully!")
+        
+        if store_result.get('success'):
+            print("Results saved successfully!")
+        else:
+            print(f"Warning: Could not save to database: {store_result.get('message', 'Unknown error')}")
+            
     except Exception as e:
         print(f"Warning: Could not save to database: {e}")
     
@@ -206,7 +214,6 @@ def print_results(result):
     print("\n" + "="*60)
     print("TERMS & CONDITIONS ANALYSIS RESULTS")
     print("="*60)
-    
     if 'error' in result:
         print(f"❌ ERROR: {result['error']}")
         return
@@ -214,15 +221,15 @@ def print_results(result):
     print(f"Website: {result['url']}")
     
     if result.get('from_cache'):
-        print("📋 Source: Previous analysis (from database)")
+        print("💾 Source: Previous analysis (from database)")
     else:
         print("🔍 Source: Fresh analysis")
     
-    print(f"\n🛡️  Safety Rating: {result['safety_rating']}")
+    print(f"\n🛡️ Safety Rating: {result['safety_rating']}")
     print(f"💡 Recommendation: {result['recommendation']}")
     
     if result.get('total_risks', 0) > 0:
-        print(f"\n⚠️  Found {result['total_risks']} potential risk(s)")
+        print(f"\n⚠️ Found {result['total_risks']} potential risk(s)")
         print("\nSuspicious clauses found:")
         for i, clause in enumerate(result.get('suspicious_clauses', []), 1):
             # Limit clause length for display
