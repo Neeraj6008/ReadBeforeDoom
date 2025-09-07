@@ -139,3 +139,7 @@ def store_analysis_result(url, tc_text, analysis_result):
 
 if __name__ == "__main__":
     print("Database module loaded. Your existing table structure will be used.")
+
+
+
+# TODO: FIX THE PORTABILITY PROBLEM
