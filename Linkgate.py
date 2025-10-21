@@ -5,8 +5,6 @@ What linkgate(url) does:
 2. Verifies the format of the url, or returns "url is invalid"
 3. Verifies if the url is reachable
 4. returns a dictionary containing info about validity of url, status code, custom message, and the url itself
-
-✅ = function is done 100%
 """
 
 import os
@@ -19,6 +17,7 @@ import requests
 import idna
 import dns.resolver
 import dns.name
+
 
 # Helper Functions:
 def ipvcollector(hostname):
@@ -40,7 +39,11 @@ def ipvcollector(hostname):
     except dns.resolver.NoAnswer:
         ipv4_add = []
     except dns.name.LabelTooLong:
-        return {"valid": False, "url": hostname, "message": f"DNS label too long in hostname: {hostname}"}
+        return {
+            "valid": False,
+            "url": hostname,
+            "message": f"DNS label too long in hostname: {hostname}",
+        }
 
     try:
         answers6 = dns.resolver.resolve(hostname, "AAAA")  # IPv6
@@ -49,6 +52,7 @@ def ipvcollector(hostname):
         ipv6_add = []
 
     return {"iplist": ipv4_add + ipv6_add}
+
 
 # Checks if the hostname (specifically the subdomain part) is valid or not.
 def is_valid_hostname(hostname):
@@ -67,6 +71,7 @@ def is_valid_hostname(hostname):
         if re.match(r"^(.)\1{3,}$", label, re.IGNORECASE):
             return False
     return True
+
 
 # Function to check the status code of the website and check if we can continue with scraping the website.
 def status_code_checker(response):
@@ -87,10 +92,12 @@ def tld_check():
 
     # Check cache validity and load if fresh
     try:
-        if (os.path.exists(cache_path) and 
-            (time.time() - os.path.getmtime(cache_path)) < max_age):
+        if (
+            os.path.exists(cache_path)
+            and (time.time() - os.path.getmtime(cache_path)) < max_age
+        ):
             try:
-                with open(cache_path, 'r') as f:
+                with open(cache_path, "r") as f:
                     return json.load(f)
             except (FileNotFoundError, json.JSONDecodeError):
                 pass  # Fall through to fetch fresh data
@@ -100,28 +107,28 @@ def tld_check():
     # Fetch fresh data from IANA
     try:
         response = requests.get(
-            "https://data.iana.org/TLD/tlds-alpha-by-domain.txt",
-            timeout=10
+            "https://data.iana.org/TLD/tlds-alpha-by-domain.txt", timeout=10
         )
         response.raise_for_status()
         tld_list = response.text.split()
-        
+
         # Save to cache
         try:
-            with open(cache_path, 'w') as f:
+            with open(cache_path, "w") as f:
                 json.dump(tld_list, f)
         except Exception:
             pass  # Cache save failure shouldn't break functionality
-            
+
         return tld_list
-        
+
     except requests.RequestException:
         # if ntwork fails try to use stale cache as backup.
         try:
-            with open(cache_path, 'r') as f:
+            with open(cache_path, "r") as f:
                 return json.load(f)
         except Exception:
             raise
+
 
 # Main function that Checks if the given url has a valid format and is reachable.
 def linkgate(url):
@@ -210,14 +217,16 @@ def linkgate(url):
             port = ":" + parts[1]
 
     normalized_netloc = url0 + port
-    url1 = urlunparse((
-        parsed.scheme,
-        normalized_netloc,
-        parsed.path,
-        parsed.params,
-        parsed.query,
-        parsed.fragment,
-    ))
+    url1 = urlunparse(
+        (
+            parsed.scheme,
+            normalized_netloc,
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
 
     # HTTP validation
     header = {
@@ -233,15 +242,19 @@ def linkgate(url):
         response = requests.head(url1, timeout=5, headers=header, allow_redirects=False)
         status_code_valid = status_code_checker(response)
         redir = status_code_valid.get("redirect/link")
-        
+
         if status_code_valid["valid"]:
             if isinstance(redir, str) and redir:
                 url_final = urljoin(url1, redir)
             else:
                 url_final = response.url or url1
         else:
-            return {"valid": False, "url": url1, "message": "Invalid response status code"}
-            
+            return {
+                "valid": False,
+                "url": url1,
+                "message": "Invalid response status code",
+            }
+
     except requests.exceptions.RequestException as e:
         return {"valid": False, "url": url1, "message": f"Connection failed: {str(e)}"}
 
@@ -250,6 +263,7 @@ def linkgate(url):
         "url": url_final,
         "message": "URL is valid and reachable",
     }
+
 
 if __name__ == "__main__":
     print(linkgate("www.fitgirlrepacks.org")["url"])

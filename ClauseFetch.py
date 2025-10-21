@@ -9,29 +9,128 @@ from typing import List, Dict, Any, Optional
 
 # Legal keyword fragments used for detection (disclaimer: very big)
 terms_fragments = [
-    "terms of service", "terms and conditions", "user agreement", "service agreement",
-    "by using", "by accessing", "by visiting", "you agree", "you accept", "you acknowledge",
-    "agreement", "accept", "acceptance", "binding", "bound", "constitute",
-    "liability", "limitation of liability", "disclaimer", "warranty", "warranties",
-    "damages", "indemnify", "indemnification", "hold harmless", "at your own risk",
-    "disclaim", "exclude", "limit", "maximum extent", "fullest extent",
-    "rights", "reserve the right", "intellectual property", "proprietary", "copyright",
-    "trademark", "license", "permitted", "prohibited", "restricted", "violation",
-    "infringement", "unauthorized", "modify", "distribute", "reproduce",
-    "service", "services", "website", "platform", "content", "materials",
-    "user", "users", "account", "registration", "access", "available",
-    "suspend", "terminate", "termination", "discontinue", "modify",
-    "privacy", "privacy policy", "personal information", "data", "collect",
-    "information", "cookies", "tracking", "third party", "share", "disclose",
-    "payment", "fees", "charges", "billing", "subscription", "refund",
-    "purchase", "transaction", "price", "cost", "currency",
-    "governing law", "jurisdiction", "dispute", "arbitration", "court",
-    "legal", "laws", "regulations", "compliance", "enforce", "enforcement",
-    "changes", "modifications", "updates", "revisions", "notice", "notification",
-    "effective date", "last updated", "from time to time", "sole discretion",
-    "as is", "as available", "without warranty", "may not", "shall not",
-    "responsible", "responsibility", "obligation", "requirements", "conditions",
-    "subject to", "in accordance with", "breach", "violation", "compliance",
+    "terms of service",
+    "terms and conditions",
+    "user agreement",
+    "service agreement",
+    "by using",
+    "by accessing",
+    "by visiting",
+    "you agree",
+    "you accept",
+    "you acknowledge",
+    "agreement",
+    "accept",
+    "acceptance",
+    "binding",
+    "bound",
+    "constitute",
+    "liability",
+    "limitation of liability",
+    "disclaimer",
+    "warranty",
+    "warranties",
+    "damages",
+    "indemnify",
+    "indemnification",
+    "hold harmless",
+    "at your own risk",
+    "disclaim",
+    "exclude",
+    "limit",
+    "maximum extent",
+    "fullest extent",
+    "rights",
+    "reserve the right",
+    "intellectual property",
+    "proprietary",
+    "copyright",
+    "trademark",
+    "license",
+    "permitted",
+    "prohibited",
+    "restricted",
+    "violation",
+    "infringement",
+    "unauthorized",
+    "modify",
+    "distribute",
+    "reproduce",
+    "service",
+    "services",
+    "website",
+    "platform",
+    "content",
+    "materials",
+    "user",
+    "users",
+    "account",
+    "registration",
+    "access",
+    "available",
+    "suspend",
+    "terminate",
+    "termination",
+    "discontinue",
+    "modify",
+    "privacy",
+    "privacy policy",
+    "personal information",
+    "data",
+    "collect",
+    "information",
+    "cookies",
+    "tracking",
+    "third party",
+    "share",
+    "disclose",
+    "payment",
+    "fees",
+    "charges",
+    "billing",
+    "subscription",
+    "refund",
+    "purchase",
+    "transaction",
+    "price",
+    "cost",
+    "currency",
+    "governing law",
+    "jurisdiction",
+    "dispute",
+    "arbitration",
+    "court",
+    "legal",
+    "laws",
+    "regulations",
+    "compliance",
+    "enforce",
+    "enforcement",
+    "changes",
+    "modifications",
+    "updates",
+    "revisions",
+    "notice",
+    "notification",
+    "effective date",
+    "last updated",
+    "from time to time",
+    "sole discretion",
+    "as is",
+    "as available",
+    "without warranty",
+    "may not",
+    "shall not",
+    "responsible",
+    "responsibility",
+    "obligation",
+    "requirements",
+    "conditions",
+    "subject to",
+    "in accordance with",
+    "breach",
+    "violation",
+    "compliance",
 ]
 
 
@@ -83,10 +182,21 @@ def tac_in_page(tac: str, soup: Optional[b] = None) -> Dict[str, Any]:
 
     # Also try headings/title hints when body scan misses but soup exists
     if soup:
-        headings = soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'title'])
+        headings = soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "title"])
         for h in headings:
             txt = h.get_text().lower()
-            if any(k in txt for k in ["terms", "conditions", "privacy", "policy", "legal", "agreement", "service"]):
+            if any(
+                k in txt
+                for k in [
+                    "terms",
+                    "conditions",
+                    "privacy",
+                    "policy",
+                    "legal",
+                    "agreement",
+                    "service",
+                ]
+            ):
                 return {"success": True, "content": tac}
 
     return {"success": False, "content": None}
@@ -96,7 +206,7 @@ def find_legal_links(soup: b, base_url: str) -> List[str]:
     LEGAL_LINK_KEYWORDS = ["terms", "privacy", "policy", "disclaimer", "legal"]
     links = set()
     for a in soup.find_all("a", href=True):
-        href = a["href"].strip() # type: ignore
+        href = a["href"].strip()  # type: ignore
         text = a.get_text(strip=True).lower()
         href_lower = href.lower()
 
@@ -120,12 +230,19 @@ def find_legal_links(soup: b, base_url: str) -> List[str]:
 def guess_legal_paths(base_url: str) -> List[str]:
     # Fallback probes when the homepage shows no visible legal links
     common_paths = [
-        "/privacy", "/privacy-policy", "/policies",
-        "/terms", "/terms-of-service", "/terms-and-conditions",
+        "/privacy",
+        "/privacy-policy",
+        "/policies",
+        "/terms",
+        "/terms-of-service",
+        "/terms-and-conditions",
         "/legal",
     ]
-    origin = up.urlunparse(up.urlparse(base_url)._replace(path="/", params="", query="", fragment=""))
+    origin = up.urlunparse(
+        up.urlparse(base_url)._replace(path="/", params="", query="", fragment="")
+    )
     return [up.urljoin(origin, p) for p in common_paths]
+
 
 header = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
@@ -136,11 +253,16 @@ header = {
     "Connection": "keep-alive",
 }
 
+
 def Clausefetch(url: str) -> Dict[str, Any]:
     if not url.startswith(("http://", "https://")):
         return {
-            "success": False, "found_in_page": False, "found_in_links": False,
-            "content": None, "links": None, "error": "Invalid URL format"
+            "success": False,
+            "found_in_page": False,
+            "found_in_links": False,
+            "content": None,
+            "links": None,
+            "error": "Invalid URL format",
         }
 
     # Fetch homepage
@@ -149,8 +271,12 @@ def Clausefetch(url: str) -> Dict[str, Any]:
         resp.raise_for_status()
     except r.exceptions.RequestException as e:
         return {
-            "success": False, "found_in_page": False, "found_in_links": False,
-            "content": None, "links": None, "error": f"Connection error: {e}"
+            "success": False,
+            "found_in_page": False,
+            "found_in_links": False,
+            "content": None,
+            "links": None,
+            "error": f"Connection error: {e}",
         }
 
     html = normalized_html(resp)
@@ -161,8 +287,12 @@ def Clausefetch(url: str) -> Dict[str, Any]:
     in_page = tac_in_page(page_text, soup)
     if in_page["success"]:
         return {
-            "success": True, "found_in_page": True, "found_in_links": False,
-            "content": in_page["content"], "links": None, "error": None
+            "success": True,
+            "found_in_page": True,
+            "found_in_links": False,
+            "content": in_page["content"],
+            "links": None,
+            "error": None,
         }
 
     # 2) Look for legal links (cross-domain allowed), else probe common paths
@@ -187,13 +317,21 @@ def Clausefetch(url: str) -> Dict[str, Any]:
 
     if found_docs:
         return {
-            "success": True, "found_in_page": False, "found_in_links": True,
-            "content": found_docs, "links": candidates, "error": None
+            "success": True,
+            "found_in_page": False,
+            "found_in_links": True,
+            "content": found_docs,
+            "links": candidates,
+            "error": None,
         }
 
     return {
-        "success": False, "found_in_page": False, "found_in_links": False,
-        "content": None, "links": None, "error": None
+        "success": False,
+        "found_in_page": False,
+        "found_in_links": False,
+        "content": None,
+        "links": None,
+        "error": None,
     }
 
 

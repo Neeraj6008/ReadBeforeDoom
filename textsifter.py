@@ -16,22 +16,22 @@ def text_preprocessor(txt: str):
     try:
         # Load the English model
         nlpobject = s.load('en_core_web_sm')
-        
+
         # Process the text
         doc = nlpobject(txt)
-        
+
         # Convert the text into sentences to make clause searching easier
         sentences = [sent.text.strip() for sent in doc.sents]
-        
+
         # Clean the text sentence-by-sentence
         cleaned_sent = []
         for snt in sentences:
             # Fixed: Proper condition check - keep sentences longer than 10 characters
             if len(snt.strip()) > 10 and snt.strip():
                 cleaned_sent.append(snt.strip())  # Keep original case for better matching
-        
+
         return {"cleaned_stuff": cleaned_sent}
-    
+
     except OSError:
         print("Warning: spaCy model not found. Using basic sentence splitting.")
         # Fallback to simple sentence splitting
@@ -42,7 +42,7 @@ def text_preprocessor(txt: str):
 # Risk checker:
 def risk_analysis(risks_found_list: list):
     risk_count = len(risks_found_list)
-    
+
     # Calculate safety score based on number of risks
     if risk_count >= 5:
         safety_score = 2
@@ -54,7 +54,7 @@ def risk_analysis(risks_found_list: list):
         safety_score = 7
     else:
         safety_score = 9
-    
+
     # Generate recommendation based on safety score
     if safety_score >= 8:
         recommendation = "The T&Cs look fine, you can continue..."
@@ -62,7 +62,7 @@ def risk_analysis(risks_found_list: list):
         recommendation = "Proceed with caution"
     else:
         recommendation = "High risk - consider alternatives"
-    
+
     return {
         "safety_score": f"{safety_score}/10",
         "recommendation": recommendation,
@@ -77,15 +77,15 @@ def textsifter(txt: str):
             'recommendation': "No content to analyze",
             'risks_found': 0
         }
-    
+
     # Preprocess the text
     processed_data = text_preprocessor(txt)
     cleantxt = processed_data["cleaned_stuff"]  # This is a List of sentences
-    
+
     # The for Loop that checks for the risks starts from here:
     risks_found = []
     sus_clauses = []
-    
+
     for sent in cleantxt:
         for risk_category, pattern in risk_patterns.items():
             match = re.search(pattern, sent, re.IGNORECASE)
@@ -93,21 +93,21 @@ def textsifter(txt: str):
                 risks_found.append(risk_category)
                 sus_clauses.append(sent)
                 break  # Only count one risk per sentence
-    
+
     # Remove duplicates while preserving order
     unique_risks = []
     unique_clauses = []
     seen_risks = set()
-    
+
     for i, risk in enumerate(risks_found):
         if risk not in seen_risks:
             unique_risks.append(risk)
             unique_clauses.append(sus_clauses[i])
             seen_risks.add(risk)
-    
+
     # Calculate the safety score
     ra = risk_analysis(unique_risks)
-    
+
     return {
         'suspicious_clauses': unique_clauses[:5],  # Limit to top 5
         'safety_rating': ra["safety_score"],
