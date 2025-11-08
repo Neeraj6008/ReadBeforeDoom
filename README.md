@@ -19,6 +19,16 @@ Features
 
 ## How to install:
 * Clone the repo to your device using `git clone https://github.com/Neeraj6008/readbeforeDoom`
+* Install the package:
+    `pip install -e .`
+* `cd readbeforedoom`
+* then install the language model by:
+    `python -m spacy download en_core_web_sm`
+
+And you are good to go!
+
+## How to use
+* run `python main.py` in RBD's directory
 
 ## Future Plans
 
