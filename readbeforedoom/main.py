@@ -1,7 +1,7 @@
-from ReadBeforeDoom.Linkgate import linkgate
-from ReadBeforeDoom.ClauseFetch import Clausefetch
-from ReadBeforeDoom.textsifter import textsifter
-from ReadBeforeDoom.Database import sql_cache_check, store_analysis_result
+from readbeforedoom.Linkgate import linkgate
+from readbeforedoom.ClauseFetch import Clausefetch
+from readbeforedoom.textsifter import textsifter
+from readbeforedoom.Database import sql_cache_check, store_analysis_result
 
 
 def show_disclaimer():
