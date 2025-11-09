@@ -30,9 +30,22 @@ And you are good to go!
 ## How to use
 * run `python main.py` in RBD's directory
 
+## Tech Stack
+- **Python 3.13+**
+- Web scraping: `requests`, `BeautifulSoup4`, `urllib`
+- Data storage: `sqlite`
+- Security: `hashlib`
+- NLP: `spacy`
+- Network: `dns`, `ipaddress`, `idna`
+
 ## Future Plans
 
-The current implementation serves as a proof-of-concept with a modular design that enables future development into:
+The current implementation serves as a proof-of-concept with a modular design, this project still needs a lot of working, such as:
+* enabling to be able to work for dynamic pages
+* Improving the NLP
+* Making the suggestions better and detailed
+
+And after I make the above changes, I will work on turning this small program into:
 * A browser extension for real-time T&C analysis
 * A full-featured application with enhanced analysis capabilities
 * Integration with additional legal document types
