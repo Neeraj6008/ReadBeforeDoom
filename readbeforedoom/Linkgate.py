@@ -6,6 +6,8 @@ What linkgate(url) does:
 3. Verifies if the url is reachable
 4. returns a dictionary containing info about validity of url, status code, custom message, and the url itself
 """
+## Yeah 250+ lines of code for simply verifying a link is.... a bit too much, but its more like optimization, validating links
+# offline is faster than using requests to validate it that causes internet wastage.
 
 import os
 import json
