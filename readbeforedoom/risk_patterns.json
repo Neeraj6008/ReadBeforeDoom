@@ -1,0 +1,91 @@
+{
+  "patterns": {
+    "data_collection": {
+      "regex": "(collect|store|process|gather|track).*(personal|data|information)",
+      "severity": "medium",
+      "description": "Service collects or processes personal data",
+      "examples": [
+        "We collect personal information",
+        "Store user data for analytics"
+      ]
+    },
+    "third_party_sharing": {
+      "regex": "(share|disclose|transfer|provide).*(third.?party|partner|affiliate)",
+      "severity": "high",
+      "description": "Data shared with third parties",
+      "examples": [
+        "We may share data with partners",
+        "Disclose information to affiliates"
+      ]
+    },
+    "liability_disclaimer": {
+      "regex": "(not liable|disclaim|exclude|limit liability|no responsibility)",
+      "severity": "high",
+      "description": "Service disclaims liability for damages",
+      "examples": [
+        "We are not liable for any damages",
+        "Company disclaims all responsibility"
+      ]
+    },
+    "unilateral_changes": {
+      "regex": "(modify|change|alter|update).*(without notice|at any time|sole discretion)",
+      "severity": "medium",
+      "description": "Terms can be changed without notice",
+      "examples": [
+        "We may modify terms at any time",
+        "Update policy without prior notice"
+      ]
+    },
+    "broad_permissions": {
+      "regex": "(any purpose|unlimited|perpetual|irrevocable)",
+      "severity": "high",
+      "description": "Broad or unlimited permissions granted",
+      "examples": [
+        "Grant us unlimited rights",
+        "Perpetual license to your content"
+      ]
+    },
+    "content_rights": {
+      "regex": "(license|grant|assign).*(content|material|intellectual property)",
+      "severity": "medium",
+      "description": "Service claims rights to your content",
+      "examples": [
+        "You grant us a license to your content",
+        "Assign intellectual property rights"
+      ]
+    },
+    "payment_traps": {
+      "regex": "(non.?refundable|automatic.?renewal|recurring.?charge|subscription.?fee)",
+      "severity": "high",
+      "description": "Non-refundable charges or auto-renewal",
+      "examples": [
+        "All purchases are non-refundable",
+        "Automatic renewal of subscription"
+      ]
+    },
+    "dispute_waiver": {
+      "regex": "(waive|forfeit|relinquish).*(right|claim|dispute|litigation|arbitration)",
+      "severity": "critical",
+      "description": "User waives legal rights or dispute resolution",
+      "examples": [
+        "You waive the right to litigation",
+        "Forfeit all claims against the company"
+      ]
+    },
+    "account_termination": {
+      "regex": "(terminate|suspend|disable).*(account|access|service).*(any time|discretion)",
+      "severity": "medium",
+      "description": "Service can terminate account at will",
+      "examples": [
+        "We may terminate your account at any time",
+        "Suspend access at our discretion"
+      ]
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2025-11-11",
+    "total_patterns": 9,
+    "contributors": ["your_name"]
+  }
+}
