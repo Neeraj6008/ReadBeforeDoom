@@ -19,11 +19,8 @@ Features
 
 ## How to install:
 * Clone the repo to your device using `git clone https://github.com/Neeraj6008/readbeforeDoom`
-* Install the package:
-    `pip install -e .`
-* `cd readbeforedoom`
-* then install the language model by:
-    `python -m spacy download en_core_web_sm`
+* move to the repo's directory: `cd readbeforedoom`
+* run `pip -r requirements.txt` to install the dependencies
 
 And you are good to go!
 
@@ -38,12 +35,12 @@ And you are good to go!
 - Web scraping: `requests`, `BeautifulSoup4`, `urllib`
 - Data storage: `sqlite`
 - Security: `hashlib`
-- NLP: `spacy` (moving to nltk because of spacy has some issue with π-thon)
+- NLP: `Regex`
 - Network: `dns`, `ipaddress`, `idna`
 
 ## Future Plans
 
-The current implementation serves as a proof-of-concept with a modular design, this project still needs a lot of working, such as:
+The current program is still in like version 1 and needs a lot of working, such as:
 * enabling to be able to work for dynamic pages
 * Improving the NLP
 * Making the suggestions better and detailed
