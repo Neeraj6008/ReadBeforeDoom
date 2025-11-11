@@ -19,10 +19,36 @@ Features
 
 ## How to install:
 * Clone the repo to your device using `git clone https://github.com/Neeraj6008/readbeforeDoom`
+* Install the package:
+    `pip install -e .`
+* `cd readbeforedoom`
+* then install the language model by:
+    `python -m spacy download en_core_web_sm`
+
+And you are good to go!
+
+## How to use
+- run `python main.py` in RBD's directory
+- Accept or reject the disclaimer (will exit the program if rejected)
+- paste the link of the website you want to check
+- Result
+
+## Tech Stack
+- **Python 3.13+**
+- Web scraping: `requests`, `BeautifulSoup4`, `urllib`
+- Data storage: `sqlite`
+- Security: `hashlib`
+- NLP: `spacy` (moving to nltk because of spacy has some issue with π-thon)
+- Network: `dns`, `ipaddress`, `idna`
 
 ## Future Plans
 
-The current implementation serves as a proof-of-concept with a modular design that enables future development into:
+The current implementation serves as a proof-of-concept with a modular design, this project still needs a lot of working, such as:
+* enabling to be able to work for dynamic pages
+* Improving the NLP
+* Making the suggestions better and detailed
+
+And after I make the above changes, I will work on turning this small program into:
 * A browser extension for real-time T&C analysis
 * A full-featured application with enhanced analysis capabilities
 * Integration with additional legal document types
