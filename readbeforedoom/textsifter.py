@@ -1,43 +1,47 @@
-import spacy as s
 import re
+import json
+import os
 
-# The following is the list of risk patterns that I will search in the text (and hopefully succeed)
-risk_patterns = {
-    'data_collection': r'(collect|store|process|gather|track).*(personal|data|information)',
-    'third_party_sharing': r'(share|disclose|transfer|provide).*(third.?party|partner|affiliate)',
-    'liability_disclaimer': r'(not liable|disclaim|exclude|limit liability|no responsibility)',
-    'unilateral_changes': r'(modify|change|alter|update).*(without notice|at any time|sole discretion)',
-    'broad_permissions': r'(any purpose|unlimited|perpetual|irrevocable)',
-    'content_rights': r'(license|grant|assign).*(content|material|intellectual property)'
-}
 
-# Cleans and unclutters text for easier processing it using textsifter.
+# Cleans and unclutters text for easier processing it using textsifter
 def text_preprocessor(txt: str):
+    """
+    Split text into sentences using regex
+    Fast, reliable, zero dependencies
+    """
+    # Split on periods, exclamation marks, question marks
+    sentences = re.split(r'[.!?]+', txt)
+    
+    # Filter out short sentences (likely noise/fragments)
+    cleaned_sent = [s.strip() for s in sentences if len(s.strip()) > 10]
+    
+    return {"cleaned_stuff": cleaned_sent}
+
+
+
+def load_risk_patterns(): # Gets the risk patterns from risk_patterns.json
+
+    pattern_file = os.path.join(os.path.dirname(__file__), 'risk_patterns.json')
+    
     try:
-        # Load the English model
-        nlpobject = s.load('en_core_web_sm')
+        with open(pattern_file, 'r') as f:
+            data = json.load(f)
+            # Extracting just the regex patterns for backward compatibility
+            return {
+                category: info['regex'] 
+                for category, info in data['patterns'].items()
+            }
 
-        # Process the text
-        doc = nlpobject(txt)
+    except FileNotFoundError:
+        print("Warning: risk_patterns.json not found. Using default patterns (less accurate obv)")
 
-        # Convert the text into sentences to make clause searching easier
-        sentences = [sent.text.strip() for sent in doc.sents]
+        return {
+            'data_collection': r'(collect|store|process|gather|track).*(personal|data|information)',
+            'third_party_sharing': r'(share|disclose|transfer|provide).*(third.?party|partner|affiliate)',
+        }
 
-        # Clean the text sentence-by-sentence
-        cleaned_sent = []
-        for snt in sentences:
-            # Fixed: Proper condition check - keep sentences longer than 10 characters
-            if len(snt.strip()) > 10 and snt.strip():
-                cleaned_sent.append(snt.strip())  # Keep original case for better matching
+risk_patterns = load_risk_patterns()
 
-        return {"cleaned_stuff": cleaned_sent}
-
-    except OSError:
-        print("Warning: spaCy model not found. Using basic sentence splitting.")
-        # Fallback to simple sentence splitting
-        sentences = re.split(r'[.!?]+', txt)
-        cleaned_sent = [s.strip() for s in sentences if len(s.strip()) > 10]
-        return {"cleaned_stuff": cleaned_sent}
 
 # Risk checker:
 def risk_analysis(risks_found_list: list):
