@@ -28,14 +28,17 @@ Features
 And you are good to go!
 
 ## How to use
-* run `python main.py` in RBD's directory
+- run `python main.py` in RBD's directory
+- Accept or reject the disclaimer (will exit the program if rejected)
+- paste the link of the website you want to check
+- Result
 
 ## Tech Stack
 - **Python 3.13+**
 - Web scraping: `requests`, `BeautifulSoup4`, `urllib`
 - Data storage: `sqlite`
 - Security: `hashlib`
-- NLP: `spacy`
+- NLP: `spacy` (moving to nltk because of spacy has some issue with π-thon)
 - Network: `dns`, `ipaddress`, `idna`
 
 ## Future Plans
